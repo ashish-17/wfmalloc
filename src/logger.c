@@ -10,7 +10,7 @@
 #include <sys/time.h>
 #include <pthread.h>
 #include <stdbool.h>
-#include "logger.h"
+#include "includes/logger.h"
 
 #define LOGGER_BUF_SIZE 1024
 #define LOG_FILENAME_MAX_LENGTH 256
