@@ -6,6 +6,7 @@
 #include "includes/local_pool.h"
 #include "includes/queue.h"
 #include <pthread.h>
+#include <string.h>
 
 void test_page() {
     LOG_PROLOG();
@@ -87,11 +88,17 @@ void test_local_pool() {
     LOG_EPILOG();
 }
 
+typedef struct dummy_data_wf_queue {
+	int data;
+	wf_queue_node_t node;
+} dummy_data_wf_queue_t;
+
 typedef struct test_data_wf_queue {
 	int thread_id;
 	int count_enque_ops;
 	wf_queue_head_t *q;
 	wf_queue_op_head_t *op_desc;
+	dummy_data_wf_queue_t* dummy_data;
 } test_data_wf_queue_t;
 
 void* test_func_wf_queue(void* thread_data) {
@@ -101,7 +108,7 @@ void* test_func_wf_queue(void* thread_data) {
 
 	int i = 0;
 	for (i = 0; i < data->count_enque_ops; ++i) {
-		wf_enqueue(data->q, create_wf_queue_node(), data->op_desc, data->thread_id);
+		wf_enqueue(data->q, &(data->dummy_data[i].node), data->op_desc, data->thread_id);
 	}
 
 	LOG_EPILOG();
@@ -119,12 +126,19 @@ void test_wf_queue() {
     pthread_t threads[COUNT_THREADS];
     test_data_wf_queue_t thread_data[COUNT_THREADS];
 
+    dummy_data_wf_queue_t dummy_data[COUNT_THREADS*COUNT_ENQUEUE_OPS];
     int i = 0;
+    for (i = 0; i < COUNT_THREADS*COUNT_ENQUEUE_OPS; ++i) {
+    	dummy_data[i].data = i;
+    	init_wf_queue_node(&(dummy_data[i].node));
+    }
+
     for (i = 0; i < COUNT_THREADS; ++i) {
     	thread_data[i].thread_id = i;
     	thread_data[i].count_enque_ops = COUNT_ENQUEUE_OPS;
     	thread_data[i].q = q;
     	thread_data[i].op_desc = op_desc;
+    	thread_data[i].dummy_data = dummy_data + i*COUNT_ENQUEUE_OPS;
 
     	LOG_INFO("Creating thread %d", i);
     	pthread_create(threads + i, NULL, test_func_wf_queue, thread_data+i);
@@ -134,12 +148,34 @@ void test_wf_queue() {
     	pthread_join(threads[i], NULL);
     }
 
+    int verify[COUNT_THREADS*COUNT_ENQUEUE_OPS];
+    memset(verify, 0, sizeof(verify));
+
     wf_queue_node_t *x = q->head;
     i=0;
     while(x!=NULL){
-    	LOG_INFO("Stamp %d = %d", i++, x->stamp);
+    	dummy_data_wf_queue_t* val = (dummy_data_wf_queue_t*)list_entry(x, dummy_data_wf_queue_t, node);
+    	if (verify[val->data] == 1) {
+    		LOG_WARN("Duplicate = %d", val->data);
+    	} else {
+    		verify[val->data] = 1;
+    	}
+
     	x=x->next;
     }
+
+    int count_miss = 0;
+    int count_found = 0;
+    for (i = 0; i < COUNT_THREADS*COUNT_ENQUEUE_OPS; ++i) {
+		if (verify[i] == 1) {
+			count_found++;
+		} else {
+			count_miss++;
+		}
+    }
+
+    LOG_INFO("Number of missed items = %d", count_miss);
+    LOG_INFO("Number of items enqueued = %d", count_found);
 
 	LOG_EPILOG();
 }

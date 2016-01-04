@@ -42,6 +42,8 @@ wf_queue_head_t* create_wf_queue();
 
 wf_queue_node_t* create_wf_queue_node();
 
+void init_wf_queue_node(wf_queue_node_t* node);
+
 wf_queue_op_head_t* create_queue_op_desc(int num_threads);
 
 void wf_enqueue(wf_queue_head_t *q, wf_queue_node_t* node, wf_queue_op_head_t* op_desc, int thread_id);

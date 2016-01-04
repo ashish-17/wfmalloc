@@ -28,14 +28,22 @@ wf_queue_head_t* create_wf_queue() {
 	return queue;
 }
 
-wf_queue_node_t* create_wf_queue_node() {
+void init_wf_queue_node(wf_queue_node_t* node) {
 	LOG_PROLOG();
 
-	wf_queue_node_t* node = (wf_queue_node_t*)malloc(sizeof(wf_queue_node_t));
 	node->next = NULL;
 	node->stamp = 0;
 	node->enq_tid = -1;
 	node->deq_tid = -1;
+
+	LOG_EPILOG();
+}
+
+wf_queue_node_t* create_wf_queue_node() {
+	LOG_PROLOG();
+
+	wf_queue_node_t* node = (wf_queue_node_t*)malloc(sizeof(wf_queue_node_t));
+	init_wf_queue_node(node);
 
 	LOG_EPILOG();
 	return node;
