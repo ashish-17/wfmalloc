@@ -179,6 +179,8 @@ void help_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 		wf_queue_node_t *last = queue->tail;
 		wf_queue_node_t *next = last->next;
 		wf_queue_node_t *new_node = (*(op_desc->ops + thread_to_help))->node;
+
+		// Do we really need ABA safety here? If yes is this the right way to go?
 		uint32_t old_stamp = queue->tail->stamp;
 		uint32_t new_stamp = (old_stamp + 1);
 		new_node->stamp = new_stamp;
@@ -258,8 +260,8 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 				if (first == queue->head && op_old->node != first) {
 					wf_queue_op_desc_t* op_new = *(op_desc->ops_reserve + thread_id);
 					op_new->phase = op_old->phase;
-					op_new->enqueue = true;
-					op_new->pending = 0;
+					op_new->enqueue = 0;
+					op_new->pending = 1;
 					op_new->node = first;
 					if (compare_and_swap_ptr((op_desc->ops + thread_to_help), op_old, op_new)) {
 						*(op_desc->ops_reserve + thread_id) = op_old;
