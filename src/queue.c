@@ -15,7 +15,9 @@ void help(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id, lo
 long max_phase(wf_queue_op_head_t* op_desc);
 bool is_pending(wf_queue_op_head_t* op_desc, long phase, int thread_id);
 void help_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id, long phase);
+void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id, long phase);
 void help_finish_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc);
+void help_finish_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc);
 
 wf_queue_head_t* create_wf_queue() {
 	LOG_PROLOG();
@@ -97,6 +99,31 @@ void wf_enqueue(wf_queue_head_t *q, wf_queue_node_t* node, wf_queue_op_head_t* o
 	LOG_EPILOG();
 }
 
+wf_queue_node_t* wf_dequeue(wf_queue_head_t *q, wf_queue_op_head_t* op_desc, int thread_id) {
+	LOG_PROLOG();
+
+	wf_queue_node_t* node = NULL;
+
+	long phase = max_phase(op_desc) + 1;
+	wf_queue_op_desc_t *op = *(op_desc->ops_reserve + thread_id);
+	op->phase = phase;
+	op->node = NULL;
+	op->pending = 1;
+	op->enqueue = false;
+
+	wf_queue_op_desc_t* op_old = *(op_desc->ops + thread_id);
+	*(op_desc->ops + thread_id) = op;
+	*(op_desc->ops_reserve + thread_id) = op_old;
+
+	help(q, op_desc, thread_id, phase);
+	help_finish_deq(q, op_desc);
+
+	node = (*(op_desc->ops + thread_id))->node;
+
+	LOG_EPILOG();
+	return node;
+}
+
 void help(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id, long phase) {
 	LOG_PROLOG();
 
@@ -109,7 +136,7 @@ void help(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id, lo
 			if (op_tmp->enqueue == 1) {
 				help_enq(queue, op_desc, thread, phase);
 			} else {
-				LOG_ERROR("Dequeue not implemented yet!");
+				help_deq(queue, op_desc, thread, phase);
 			}
 		}
 	}
@@ -189,6 +216,83 @@ void help_finish_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc) {
 			}
 
 			compare_and_swap_ptr(&(queue->tail), last, next);
+		}
+	}
+
+	LOG_EPILOG();
+}
+
+void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id, long phase) {
+	LOG_PROLOG();
+
+	while (is_pending(op_desc, phase, thread_id)) {
+		wf_queue_node_t *first = queue->head;
+		wf_queue_node_t *last = queue->tail;
+		wf_queue_node_t *next = first->next;
+		if (first == queue->head) {
+			if (first == last) {
+				if (next == NULL) {
+					wf_queue_op_desc_t* op_old = *(op_desc->ops + thread_id);
+					if ((last == queue->tail) && is_pending(op_desc, phase, thread_id)) {
+						wf_queue_op_desc_t* op_new = *(op_desc->ops_reserve + thread_id);
+						op_new->phase = op_old->phase;
+						op_new->enqueue = 0;
+						op_new->pending = 0;
+						op_new->node = NULL;
+						if (compare_and_swap_ptr((op_desc->ops + thread_id), op_old, op_new)) {
+							*(op_desc->ops_reserve + thread_id) = op_old;
+						}
+					}
+				} else {
+					help_finish_enq(queue, op_desc);
+				}
+			} else {
+				wf_queue_op_desc_t* op_old = *(op_desc->ops + thread_id);
+				if (!is_pending(op_desc, phase, thread_id)) {
+					break;
+				}
+
+				if (first == queue->head && op_old->node != first) {
+					wf_queue_op_desc_t* op_new = *(op_desc->ops_reserve + thread_id);
+					op_new->phase = op_old->phase;
+					op_new->enqueue = true;
+					op_new->pending = 0;
+					op_new->node = first;
+					if (compare_and_swap_ptr((op_desc->ops + thread_id), op_old, op_new)) {
+						*(op_desc->ops_reserve + thread_id) = op_old;
+					} else {
+						continue;
+					}
+				}
+
+				compare_and_swap32(&(first->deq_tid), -1, thread_id);
+				help_finish_deq(queue, op_desc);
+			}
+		}
+	}
+	LOG_EPILOG();
+}
+
+void help_finish_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc) {
+	LOG_PROLOG();
+
+	wf_queue_node_t *first = queue->head;
+	wf_queue_node_t *next = first->next;
+	int deq_id = first->deq_tid;
+	if (deq_id != -1) {
+		wf_queue_op_desc_t* op_old = *(op_desc->ops + deq_id);
+		if ((first == queue->head) && (next != NULL)) {
+			wf_queue_op_desc_t* op_new = *(op_desc->ops_reserve + deq_id);
+			op_new->phase = op_old->phase;
+			op_new->enqueue = 0;
+			op_new->pending = 0;
+			op_new->node = op_old->node;
+			if (compare_and_swap_ptr((op_desc->ops + deq_id), op_old, op_new)) {
+				*(op_desc->ops_reserve + deq_id) = op_old;
+			}
+
+			// ABA?? Not sure?
+			compare_and_swap_ptr(&(queue->head), first, next);
 		}
 	}
 

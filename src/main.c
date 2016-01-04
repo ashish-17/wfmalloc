@@ -96,6 +96,7 @@ typedef struct dummy_data_wf_queue {
 typedef struct test_data_wf_queue {
 	int thread_id;
 	int count_enque_ops;
+	int count_deque_ops;
 	wf_queue_head_t *q;
 	wf_queue_op_head_t *op_desc;
 	dummy_data_wf_queue_t* dummy_data;
@@ -111,6 +112,10 @@ void* test_func_wf_queue(void* thread_data) {
 		wf_enqueue(data->q, &(data->dummy_data[i].node), data->op_desc, data->thread_id);
 	}
 
+	for (i = 0; i < data->count_deque_ops; ++i) {
+		wf_dequeue(data->q, data->op_desc, data->thread_id);
+	}
+
 	LOG_EPILOG();
 	return NULL;
 }
@@ -118,8 +123,9 @@ void* test_func_wf_queue(void* thread_data) {
 void test_wf_queue() {
     LOG_PROLOG();
 
-    const int COUNT_THREADS = 50;
-    const int COUNT_ENQUEUE_OPS = 100;
+    const int COUNT_THREADS = 10;
+    const int COUNT_ENQUEUE_OPS = 20;
+    const int COUNT_DeQUEUE_OPS = 10;
 
     wf_queue_head_t *q = create_wf_queue();
     wf_queue_op_head_t *op_desc = create_queue_op_desc(COUNT_THREADS);
@@ -136,6 +142,7 @@ void test_wf_queue() {
     for (i = 0; i < COUNT_THREADS; ++i) {
     	thread_data[i].thread_id = i;
     	thread_data[i].count_enque_ops = COUNT_ENQUEUE_OPS;
+    	thread_data[i].count_deque_ops = COUNT_DeQUEUE_OPS;
     	thread_data[i].q = q;
     	thread_data[i].op_desc = op_desc;
     	thread_data[i].dummy_data = dummy_data + i*COUNT_ENQUEUE_OPS;
@@ -180,6 +187,30 @@ void test_wf_queue() {
 	LOG_EPILOG();
 }
 
+void test_wf_dequeue() {
+    LOG_PROLOG();
+
+    wf_queue_head_t *q = create_wf_queue();
+    wf_queue_op_head_t *op_desc = create_queue_op_desc(1);
+    int i = 0;
+    for (i = 0; i < 5; ++i) {
+    	wf_enqueue(q, create_wf_queue_node(), op_desc, 0);
+    }
+
+	for (i = 0; i < 10; ++i) {
+		wf_dequeue(q, op_desc, 0);
+	}
+
+	wf_queue_node_t *x = q->head;
+	i=0;
+	while (x != NULL) {
+		LOG_INFO("Queue item %d", i++);
+		x = x->next;
+	}
+
+	LOG_EPILOG();
+}
+
 int main() {
     LOG_INIT_CONSOLE();
     LOG_INIT_FILE();
@@ -187,6 +218,7 @@ int main() {
     //test_page();
     //test_local_pool();
     test_wf_queue();
+    //test_wf_dequeue();
 
     LOG_CLOSE();
     return 0;
