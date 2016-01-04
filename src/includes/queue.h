@@ -38,7 +38,7 @@ typedef struct wf_queues_op_head {
 	wf_queue_op_desc_t** ops_reserve;
 } wf_queue_op_head_t;
 
-wf_queue_head_t* create_wf_queue();
+wf_queue_head_t* create_wf_queue(wf_queue_node_t* sentinel);
 
 wf_queue_node_t* create_wf_queue_node();
 

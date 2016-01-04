@@ -124,20 +124,22 @@ void test_wf_queue() {
     LOG_PROLOG();
 
     const int COUNT_THREADS = 10;
-    const int COUNT_ENQUEUE_OPS = 20;
-    const int COUNT_DeQUEUE_OPS = 10;
+    const int COUNT_ENQUEUE_OPS = 10;
+    const int COUNT_DeQUEUE_OPS = 5;
 
-    wf_queue_head_t *q = create_wf_queue();
-    wf_queue_op_head_t *op_desc = create_queue_op_desc(COUNT_THREADS);
-    pthread_t threads[COUNT_THREADS];
-    test_data_wf_queue_t thread_data[COUNT_THREADS];
+    // Result = 1 + COUNT_THREADS*COUNT_ENQUEUE_OPS - COUNT_THREADS*COUNT_DeQUEUE_OPS
 
-    dummy_data_wf_queue_t dummy_data[COUNT_THREADS*COUNT_ENQUEUE_OPS];
+    dummy_data_wf_queue_t dummy_data[COUNT_THREADS*COUNT_ENQUEUE_OPS + 1];
     int i = 0;
-    for (i = 0; i < COUNT_THREADS*COUNT_ENQUEUE_OPS; ++i) {
+    for (i = 0; i < (COUNT_THREADS*COUNT_ENQUEUE_OPS + 1); ++i) {
     	dummy_data[i].data = i;
     	init_wf_queue_node(&(dummy_data[i].node));
     }
+
+    wf_queue_head_t *q = create_wf_queue(&(dummy_data[0].node));
+    wf_queue_op_head_t *op_desc = create_queue_op_desc(COUNT_THREADS);
+    pthread_t threads[COUNT_THREADS];
+    test_data_wf_queue_t thread_data[COUNT_THREADS];
 
     for (i = 0; i < COUNT_THREADS; ++i) {
     	thread_data[i].thread_id = i;
@@ -145,7 +147,7 @@ void test_wf_queue() {
     	thread_data[i].count_deque_ops = COUNT_DeQUEUE_OPS;
     	thread_data[i].q = q;
     	thread_data[i].op_desc = op_desc;
-    	thread_data[i].dummy_data = dummy_data + i*COUNT_ENQUEUE_OPS;
+    	thread_data[i].dummy_data = dummy_data + i*COUNT_ENQUEUE_OPS+1;
 
     	LOG_INFO("Creating thread %d", i);
     	pthread_create(threads + i, NULL, test_func_wf_queue, thread_data+i);
@@ -159,7 +161,7 @@ void test_wf_queue() {
     memset(verify, 0, sizeof(verify));
 
     wf_queue_node_t *x = q->head;
-    i=0;
+    int total=0;
     while(x!=NULL){
     	dummy_data_wf_queue_t* val = (dummy_data_wf_queue_t*)list_entry(x, dummy_data_wf_queue_t, node);
     	if (verify[val->data] == 1) {
@@ -168,12 +170,13 @@ void test_wf_queue() {
     		verify[val->data] = 1;
     	}
 
+    	total++;
     	x=x->next;
     }
 
     int count_miss = 0;
     int count_found = 0;
-    for (i = 0; i < COUNT_THREADS*COUNT_ENQUEUE_OPS; ++i) {
+    for (i = 0; i < COUNT_THREADS*COUNT_ENQUEUE_OPS+1; ++i) {
 		if (verify[i] == 1) {
 			count_found++;
 		} else {
@@ -183,6 +186,7 @@ void test_wf_queue() {
 
     LOG_INFO("Number of missed items = %d", count_miss);
     LOG_INFO("Number of items enqueued = %d", count_found);
+    LOG_INFO("Total number of items in queue = %d", total);
 
 	LOG_EPILOG();
 }
@@ -190,23 +194,25 @@ void test_wf_queue() {
 void test_wf_dequeue() {
     LOG_PROLOG();
 
-    wf_queue_head_t *q = create_wf_queue();
+    wf_queue_head_t *q = create_wf_queue(create_wf_queue_node());
     wf_queue_op_head_t *op_desc = create_queue_op_desc(1);
     int i = 0;
-    for (i = 0; i < 5; ++i) {
+	for (i = 0; i < 5; ++i) {
     	wf_enqueue(q, create_wf_queue_node(), op_desc, 0);
-    }
-
-	for (i = 0; i < 10; ++i) {
+    	wf_enqueue(q, create_wf_queue_node(), op_desc, 0);
 		wf_dequeue(q, op_desc, 0);
 	}
 
 	wf_queue_node_t *x = q->head;
 	i=0;
+	int total = 0;
 	while (x != NULL) {
 		LOG_INFO("Queue item %d", i++);
 		x = x->next;
+		total++;
 	}
+
+    LOG_INFO("Total number of items in queue = %d", total);
 
 	LOG_EPILOG();
 }
