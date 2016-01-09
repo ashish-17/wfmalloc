@@ -10,6 +10,7 @@
 #include "includes/queue.h"
 #include "includes/logger.h"
 #include "includes/atomic.h"
+#include <pthread.h>
 
 #define STAMPED_REF_TO_REF(ptr, ref_type) ((ref_type*)((ptr)->ref))
 #define CAS(old_stamped_ref, expected_stamped_ref, expected_ref, expected_stamp, new_stamped_ref) \
@@ -18,6 +19,9 @@
 			((((old_stamped_ref)->ref == (new_stamped_ref)->ref) && \
 					((old_stamped_ref)->stamp == (new_stamped_ref)->stamp)) || \
 					(compare_and_swap_ptr (&(old_stamped_ref), (expected_stamped_ref), (new_stamped_ref)))))
+
+#define CAS_OLD(old_stamped_ref, expected_stamped_ref, expected_ref, expected_stamp, new_stamped_ref) \
+	(compare_and_swap_ptr (&(old_stamped_ref), (expected_stamped_ref), (new_stamped_ref)))
 
 void help(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id, long phase);
 long max_phase(wf_queue_op_head_t* op_desc);
@@ -157,6 +161,8 @@ wf_queue_node_t* wf_dequeue(wf_queue_head_t *q, wf_queue_op_head_t* op_desc, int
 	stamped_ref_t *old_stamped_ref = *(op_desc->ref_mem.ops + thread_id);
 	stamped_ref_t *reserve_stamped_ref = *(op_desc->ref_mem.ops_reserve + thread_id);
 
+	LOG_INFO("Before enqueue old_stamped_ref = %x reserve_stamped_ref = %x", old_stamped_ref, reserve_stamped_ref);
+
 	wf_queue_op_desc_t *op = *(op_desc->ops_reserve + thread_id);
 	op->phase = phase;
 	op->node = NULL;
@@ -222,6 +228,8 @@ long max_phase(wf_queue_op_head_t* op_desc) {
 bool is_pending(wf_queue_op_head_t* op_desc, long phase, int thread_id) {
 	LOG_PROLOG();
 
+	LOG_INFO("Pendng - thread %d", pthread_self());
+
 	wf_queue_op_desc_t* op_tmp = STAMPED_REF_TO_REF(*(op_desc->ref_mem.ops + thread_id), wf_queue_op_desc_t);
 
 	LOG_EPILOG();
@@ -234,7 +242,7 @@ void help_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 	while (is_pending(op_desc, phase, thread_to_help)) {
 		wf_queue_node_t *last = STAMPED_REF_TO_REF(queue->tail, wf_queue_node_t);
 		stamped_ref_t *next = last->next;
-		wf_queue_node_t *new_node = STAMPED_REF_TO_REF(*(op_desc->ref_mem.ops + thread_id), wf_queue_op_desc_t)->node;
+		wf_queue_node_t *new_node = STAMPED_REF_TO_REF(*(op_desc->ref_mem.ops + thread_to_help), wf_queue_op_desc_t)->node;
 
 		uint32_t old_stamp = last->next->stamp;
 		uint32_t new_stamp = (old_stamp + 1);
@@ -249,6 +257,8 @@ void help_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 						help_finish_enq(queue, op_desc, thread_id);
 						LOG_INFO("After CAS help_enq");
 						return;
+					} else {
+						LOG_INFO("CAS failed on OP_DESC1");
 					}
 				}
 			} else {
@@ -287,16 +297,26 @@ void help_finish_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 			stamped_ref_t* op_new_stamped_ref = *(op_desc->ref_mem.ops_reserve + thread_id);
 			op_new_stamped_ref->ref = op_new;
 			op_new_stamped_ref->stamp = new_stamp;
+			LOG_INFO("new stamp op_desc= %d", new_stamp);
+			LOG_INFO("Before OP_DESC2 CAS 1 = %x 2 = %x", *(op_desc->ref_mem.ops + enq_tid), op_stamped_ref);
 			if (CAS(*(op_desc->ref_mem.ops + enq_tid), op_stamped_ref, op, old_stamp, op_new_stamped_ref)) {
 				*(op_desc->ops_reserve + thread_id) = op;
 				*(op_desc->ref_mem.ops_reserve + thread_id) = op_stamped_ref;
+				LOG_INFO("After OP_DESC2 CAS 1 = %x 2 = %x", *(op_desc->ref_mem.ops + enq_tid), op_stamped_ref);
+				LOG_INFO("CAS success on OP_DESC2");
+			} else {
+				LOG_INFO("CAS failed on OP_DESC2");
 			}
 
 			stamped_ref_t* node_new_stamped_ref = *(op_desc->ref_mem.tail_reserve + thread_id);
 			node_new_stamped_ref->ref = next->ref;
 			node_new_stamped_ref->stamp = new_stamp_tail;
+			LOG_INFO("new stamp tail= %d", new_stamp_tail);
 			if (CAS(queue->tail, old_stamped_ref_tail, last, old_stamp_tail, node_new_stamped_ref)) {
 				*(op_desc->ref_mem.tail_reserve + thread_id) = old_stamped_ref_tail;
+				LOG_INFO("CAS success on tail");
+			} else {
+				LOG_INFO("CAS failed on tail");
 			}
 		}
 	}

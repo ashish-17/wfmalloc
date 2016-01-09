@@ -113,7 +113,7 @@ void* test_func_wf_queue(void* thread_data) {
 	}
 
 	for (i = 0; i < data->count_deque_ops; ++i) {
-		//wf_dequeue(data->q, data->op_desc, data->thread_id);
+		wf_dequeue(data->q, data->op_desc, data->thread_id);
 	}
 
 	LOG_EPILOG();
@@ -123,9 +123,9 @@ void* test_func_wf_queue(void* thread_data) {
 void test_wf_queue() {
     LOG_PROLOG();
 
-    const int COUNT_THREADS = 3;
+    const int COUNT_THREADS = 5;
     const int COUNT_ENQUEUE_OPS = 10;
-    const int COUNT_DeQUEUE_OPS = 1;
+    const int COUNT_DeQUEUE_OPS = 0;
 
     // Result = 1 + COUNT_THREADS*COUNT_ENQUEUE_OPS - COUNT_THREADS*COUNT_DeQUEUE_OPS
 
@@ -197,7 +197,7 @@ void test_wf_dequeue() {
     wf_queue_head_t *q = create_wf_queue(create_wf_queue_node());
     wf_queue_op_head_t *op_desc = create_queue_op_desc(1);
     int i = 0;
-	for (i = 0; i < 5; ++i) {
+	for (i = 0; i < 50; ++i) {
     	wf_enqueue(q, create_wf_queue_node(), op_desc, 0);
     	wf_enqueue(q, create_wf_queue_node(), op_desc, 0);
 		wf_dequeue(q, op_desc, 0);
@@ -223,8 +223,8 @@ int main() {
 
     //test_page();
     //test_local_pool();
-    test_wf_queue();
-    //test_wf_dequeue();
+    //test_wf_queue();
+    test_wf_dequeue();
 
     LOG_CLOSE();
     return 0;
