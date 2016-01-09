@@ -128,6 +128,8 @@ void wf_enqueue(wf_queue_head_t *q, wf_queue_node_t* node, wf_queue_op_head_t* o
 	stamped_ref_t *old_stamped_ref = *(op_desc->ref_mem.ops + thread_id);
 	stamped_ref_t *reserve_stamped_ref = *(op_desc->ref_mem.ops_reserve + thread_id);
 
+	LOG_INFO("Before enqueue old_stamped_ref = %x reserve_stamped_ref = %x", old_stamped_ref, reserve_stamped_ref);
+
 	wf_queue_op_desc_t *op = *(op_desc->ops_reserve + thread_id);
 	op->phase = phase;
 
@@ -161,7 +163,7 @@ wf_queue_node_t* wf_dequeue(wf_queue_head_t *q, wf_queue_op_head_t* op_desc, int
 	stamped_ref_t *old_stamped_ref = *(op_desc->ref_mem.ops + thread_id);
 	stamped_ref_t *reserve_stamped_ref = *(op_desc->ref_mem.ops_reserve + thread_id);
 
-	LOG_INFO("Before enqueue old_stamped_ref = %x reserve_stamped_ref = %x", old_stamped_ref, reserve_stamped_ref);
+	LOG_INFO("Before dequeue old_stamped_ref = %x reserve_stamped_ref = %x", old_stamped_ref, reserve_stamped_ref);
 
 	wf_queue_op_desc_t *op = *(op_desc->ops_reserve + thread_id);
 	op->phase = phase;
@@ -302,7 +304,7 @@ void help_finish_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 			if (CAS(*(op_desc->ref_mem.ops + enq_tid), op_stamped_ref, op, old_stamp, op_new_stamped_ref)) {
 				*(op_desc->ops_reserve + thread_id) = op;
 				*(op_desc->ref_mem.ops_reserve + thread_id) = op_stamped_ref;
-				LOG_INFO("After OP_DESC2 CAS 1 = %x 2 = %x", *(op_desc->ref_mem.ops + enq_tid), op_stamped_ref);
+				LOG_INFO("(Thread - %d) After OP_DESC2 CAS 1 = %x 2 = %x", thread_id, *(op_desc->ref_mem.ops + enq_tid), op_stamped_ref);
 				LOG_INFO("CAS success on OP_DESC2");
 			} else {
 				LOG_INFO("CAS failed on OP_DESC2");

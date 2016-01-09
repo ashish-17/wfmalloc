@@ -200,7 +200,7 @@ void test_wf_dequeue() {
 	for (i = 0; i < 50; ++i) {
     	wf_enqueue(q, create_wf_queue_node(), op_desc, 0);
     	wf_enqueue(q, create_wf_queue_node(), op_desc, 0);
-		wf_dequeue(q, op_desc, 0);
+		//wf_dequeue(q, op_desc, 0);
 	}
 
 	wf_queue_node_t *x = q->head->ref;
@@ -223,8 +223,8 @@ int main() {
 
     //test_page();
     //test_local_pool();
-    //test_wf_queue();
-    test_wf_dequeue();
+    test_wf_queue();
+    //test_wf_dequeue();
 
     LOG_CLOSE();
     return 0;
