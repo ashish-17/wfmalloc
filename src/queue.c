@@ -13,15 +13,21 @@
 #include <pthread.h>
 
 #define STAMPED_REF_TO_REF(ptr, ref_type) ((ref_type*)((ptr)->ref))
+#define CAS_COND1(old_stamped_ref, expected_stamped_ref, expected_ref, expected_stamp, new_stamped_ref) \
+					(((old_stamped_ref)->ref == (expected_ref)) && (((old_stamped_ref)->stamp == (expected_stamp))))
+
+#define CAS_COND2(old_stamped_ref, expected_stamped_ref, expected_ref, expected_stamp, new_stamped_ref) \
+					(((old_stamped_ref)->ref == (new_stamped_ref)->ref) && (((old_stamped_ref)->stamp == (new_stamped_ref)->stamp)))
+
+#define CAS_COND3(old_stamped_ref, expected_stamped_ref, expected_ref, expected_stamp, new_stamped_ref) \
+					(compare_and_swap_ptr (&(old_stamped_ref), (expected_stamped_ref), (new_stamped_ref)))
+
 #define CAS(old_stamped_ref, expected_stamped_ref, expected_ref, expected_stamp, new_stamped_ref) \
 	((((old_stamped_ref)->ref == (expected_ref)) && \
 			((old_stamped_ref)->stamp == (expected_stamp))) && \
 			((((old_stamped_ref)->ref == (new_stamped_ref)->ref) && \
 					((old_stamped_ref)->stamp == (new_stamped_ref)->stamp)) || \
 					(compare_and_swap_ptr (&(old_stamped_ref), (expected_stamped_ref), (new_stamped_ref)))))
-
-#define CAS_OLD(old_stamped_ref, expected_stamped_ref, expected_ref, expected_stamp, new_stamped_ref) \
-	(compare_and_swap_ptr (&(old_stamped_ref), (expected_stamped_ref), (new_stamped_ref)))
 
 void help(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id, long phase);
 long max_phase(wf_queue_op_head_t* op_desc);
@@ -254,13 +260,17 @@ void help_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 					stamped_ref_t* node_new_stamped_ref = (stamped_ref_t*)malloc(sizeof(stamped_ref_t));//*(op_desc->ref_mem.next_reserve + thread_id);
 					node_new_stamped_ref->ref = new_node;
 					node_new_stamped_ref->stamp = new_stamp;
-					if (CAS(STAMPED_REF_TO_REF(queue->tail, wf_queue_node_t)->next, next, next->ref, next->stamp, node_new_stamped_ref)) {
-						*(op_desc->ref_mem.next_reserve + thread_id) = next; // Recycle stamped reference
-						help_finish_enq(queue, op_desc, thread_id);
-						LOG_INFO("After CAS help_enq");
-						return;
-					} else {
-						LOG_INFO("CAS failed on OP_DESC1");
+					if (CAS_COND1(STAMPED_REF_TO_REF(queue->tail, wf_queue_node_t)->next, next, next->ref, next->stamp, node_new_stamped_ref)) {
+						if (CAS_COND2(STAMPED_REF_TO_REF(queue->tail, wf_queue_node_t)->next, next, next->ref, next->stamp, node_new_stamped_ref)) {
+							LOG_INFO("NEXT cond 2");
+							help_finish_enq(queue, op_desc, thread_id);
+							return;
+						} else if (CAS_COND3(STAMPED_REF_TO_REF(queue->tail, wf_queue_node_t)->next, next, next->ref, next->stamp, node_new_stamped_ref)) {
+							*(op_desc->ref_mem.next_reserve + thread_id) = next; // Recycle stamped reference
+							help_finish_enq(queue, op_desc, thread_id);
+							LOG_INFO("After CAS help_enq");
+							return;
+						}
 					}
 				}
 			} else {
@@ -294,31 +304,35 @@ void help_finish_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 			op_new->phase = op->phase;
 			op_new->pending = false;
 			op_new->enqueue = true;
-			op_new->node = op->node;
+			op_new->node = NULL;
 
 			stamped_ref_t* op_new_stamped_ref = (stamped_ref_t*)malloc(sizeof(stamped_ref_t));//*(op_desc->ref_mem.ops_reserve + thread_id);
 			op_new_stamped_ref->ref = op_new;
 			op_new_stamped_ref->stamp = new_stamp;
 			LOG_INFO("new stamp op_desc= %d", new_stamp);
 			LOG_INFO("Before OP_DESC2 CAS 1 = %x 2 = %x", *(op_desc->ref_mem.ops + enq_tid), op_stamped_ref);
-			if (CAS(*(op_desc->ref_mem.ops + enq_tid), op_stamped_ref, op, old_stamp, op_new_stamped_ref)) {
-				*(op_desc->ops_reserve + thread_id) = op;
-				*(op_desc->ref_mem.ops_reserve + thread_id) = op_stamped_ref;
-				LOG_INFO("(Thread - %d) After OP_DESC2 CAS 1 = %x 2 = %x", thread_id, *(op_desc->ref_mem.ops + enq_tid), op_stamped_ref);
-				LOG_INFO("CAS success on OP_DESC2");
-			} else {
-				LOG_INFO("CAS failed on OP_DESC2");
+			if (CAS_COND1(*(op_desc->ref_mem.ops + enq_tid), op_stamped_ref, op, old_stamp, op_new_stamped_ref)) {
+				if (CAS_COND2(*(op_desc->ref_mem.ops + enq_tid), op_stamped_ref, op, old_stamp, op_new_stamped_ref)) {
+					LOG_INFO("OP_DESC cond 2");
+				} else if (CAS_COND3(*(op_desc->ref_mem.ops + enq_tid), op_stamped_ref, op, old_stamp, op_new_stamped_ref)) {
+					*(op_desc->ops_reserve + thread_id) = op;
+					*(op_desc->ref_mem.ops_reserve + thread_id) = op_stamped_ref;
+					LOG_INFO("(Thread - %d) After OP_DESC2 CAS 1 = %x 2 = %x", thread_id, *(op_desc->ref_mem.ops + enq_tid), op_stamped_ref);
+					LOG_INFO("CAS success on OP_DESC2");
+				}
 			}
 
 			stamped_ref_t* node_new_stamped_ref = (stamped_ref_t*)malloc(sizeof(stamped_ref_t));//*(op_desc->ref_mem.tail_reserve + thread_id);
 			node_new_stamped_ref->ref = next->ref;
 			node_new_stamped_ref->stamp = new_stamp_tail;
 			LOG_INFO("new stamp tail= %d", new_stamp_tail);
-			if (CAS(queue->tail, old_stamped_ref_tail, last, old_stamp_tail, node_new_stamped_ref)) {
-				*(op_desc->ref_mem.tail_reserve + thread_id) = old_stamped_ref_tail;
-				LOG_INFO("CAS success on tail");
-			} else {
-				LOG_INFO("CAS failed on tail");
+			if (CAS_COND1(queue->tail, old_stamped_ref_tail, last, old_stamp_tail, node_new_stamped_ref)) {
+				if (CAS_COND2(queue->tail, old_stamped_ref_tail, last, old_stamp_tail, node_new_stamped_ref)) {
+					LOG_INFO("Tail cond 2");
+				} else if (CAS_COND3(queue->tail, old_stamped_ref_tail, last, old_stamp_tail, node_new_stamped_ref)) {
+					*(op_desc->ref_mem.tail_reserve + thread_id) = old_stamped_ref_tail;
+					LOG_INFO("CAS success on tail");
+				}
 			}
 		}
 	}
@@ -349,9 +363,13 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 						stamped_ref_t* op_new_stamped_ref = *(op_desc->ref_mem.ops_reserve + thread_id);
 						op_new_stamped_ref->ref = op_new;
 						op_new_stamped_ref->stamp = new_stamp;
-						if (CAS(*(op_desc->ref_mem.ops + thread_to_help), op_stamped_ref, op_old, old_stamp, op_new_stamped_ref)) {
-							*(op_desc->ops_reserve + thread_id) = op_old;
-							*(op_desc->ref_mem.ops_reserve + thread_id) = op_stamped_ref;
+						if (CAS_COND1(*(op_desc->ref_mem.ops + thread_to_help), op_stamped_ref, op_old, old_stamp, op_new_stamped_ref)) {
+							if (CAS_COND2(*(op_desc->ref_mem.ops + thread_to_help), op_stamped_ref, op_old, old_stamp, op_new_stamped_ref)) {
+								// Nothing
+							} else if (CAS_COND3(*(op_desc->ref_mem.ops + thread_to_help), op_stamped_ref, op_old, old_stamp, op_new_stamped_ref)) {
+								*(op_desc->ops_reserve + thread_id) = op_old;
+								*(op_desc->ref_mem.ops_reserve + thread_id) = op_stamped_ref;
+							}
 						}
 					}
 				} else {
@@ -375,9 +393,15 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 					stamped_ref_t* op_new_stamped_ref = *(op_desc->ref_mem.ops_reserve + thread_id);
 					op_new_stamped_ref->ref = op_new;
 					op_new_stamped_ref->stamp = new_stamp;
-					if (CAS(*(op_desc->ref_mem.ops + thread_to_help), op_stamped_ref, op_old, old_stamp, op_new_stamped_ref)) {
-						*(op_desc->ops_reserve + thread_id) = op_old;
-						*(op_desc->ref_mem.ops_reserve + thread_id) = op_stamped_ref;
+					if (CAS_COND1(*(op_desc->ref_mem.ops + thread_to_help), op_stamped_ref, op_old, old_stamp, op_new_stamped_ref)) {
+						if (CAS_COND2(*(op_desc->ref_mem.ops + thread_to_help), op_stamped_ref, op_old, old_stamp, op_new_stamped_ref)) {
+							// Nothing
+						} else if (CAS_COND3(*(op_desc->ref_mem.ops + thread_to_help), op_stamped_ref, op_old, old_stamp, op_new_stamped_ref)) {
+							*(op_desc->ops_reserve + thread_id) = op_old;
+							*(op_desc->ref_mem.ops_reserve + thread_id) = op_stamped_ref;
+						} else {
+							continue;
+						}
 					} else {
 						continue;
 					}
@@ -414,16 +438,24 @@ void help_finish_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 			stamped_ref_t* op_new_stamped_ref = *(op_desc->ref_mem.ops_reserve + thread_id);
 			op_new_stamped_ref->ref = op_new;
 			op_new_stamped_ref->stamp = new_stamp;
-			if (CAS(*(op_desc->ref_mem.ops + deq_id), op_stamped_ref, op_old, old_stamp, op_new_stamped_ref)) {
-				*(op_desc->ops_reserve + thread_id) = op_old;
-				*(op_desc->ref_mem.ops_reserve + thread_id) = op_stamped_ref;
+			if (CAS_COND1(*(op_desc->ref_mem.ops + deq_id), op_stamped_ref, op_old, old_stamp, op_new_stamped_ref)) {
+				if (CAS_COND2(*(op_desc->ref_mem.ops + deq_id), op_stamped_ref, op_old, old_stamp, op_new_stamped_ref)) {
+					// Nothing
+				} else if (CAS_COND3(*(op_desc->ref_mem.ops + deq_id), op_stamped_ref, op_old, old_stamp, op_new_stamped_ref)) {
+					*(op_desc->ops_reserve + thread_id) = op_old;
+					*(op_desc->ref_mem.ops_reserve + thread_id) = op_stamped_ref;
+				}
 			}
 
 			stamped_ref_t* node_new_stamped_ref = *(op_desc->ref_mem.head_reserve + thread_id);
 			node_new_stamped_ref->ref = next;
 			node_new_stamped_ref->stamp = new_stamp_node;
-			if (CAS(queue->head, old_stamped_ref_head, first, old_stamp_node, node_new_stamped_ref)) {
-				*(op_desc->ref_mem.head_reserve + thread_id) = old_stamped_ref_head;
+			if (CAS_COND1(queue->head, old_stamped_ref_head, first, old_stamp_node, node_new_stamped_ref)) {
+				if (CAS_COND2(queue->head, old_stamped_ref_head, first, old_stamp_node, node_new_stamped_ref)) {
+					// Nothing
+				} else if (CAS_COND3(queue->head, old_stamped_ref_head, first, old_stamp_node, node_new_stamped_ref)) {
+					*(op_desc->ref_mem.head_reserve + thread_id) = old_stamped_ref_head;
+				}
 			}
 		}
 	}

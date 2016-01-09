@@ -123,7 +123,7 @@ void* test_func_wf_queue(void* thread_data) {
 void test_wf_queue() {
     LOG_PROLOG();
 
-    const int COUNT_THREADS = 80;
+    const int COUNT_THREADS = 40;
     const int COUNT_ENQUEUE_OPS = 50;
     const int COUNT_DeQUEUE_OPS = 0;
 
