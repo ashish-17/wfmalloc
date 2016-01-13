@@ -226,6 +226,7 @@ long max_phase(wf_queue_op_head_t* op_desc) {
 		}
 	}
 
+	LOG_EPILOG();
 	return max_phase;
 }
 

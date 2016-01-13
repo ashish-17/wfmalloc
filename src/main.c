@@ -5,6 +5,7 @@
 #include "includes/page.h"
 #include "includes/local_pool.h"
 #include "includes/queue.h"
+#include "includes/shared_pool.h"
 #include <pthread.h>
 #include <string.h>
 
@@ -223,8 +224,10 @@ int main() {
 
     //test_page();
     //test_local_pool();
-    test_wf_queue();
+    //test_wf_queue();
     //test_wf_dequeue();
+
+    create_shared_pool(4);
 
     LOG_CLOSE();
     return 0;

@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "list.h"
+#include "queue.h"
 
 typedef struct page_header page_header_t;
 
@@ -25,6 +26,7 @@ struct page_header {
 	uint32_t block_size;
 	uint32_t max_blocks;
 	list_t node;
+	wf_queue_node_t wf_node;
 	uint8_t block_flags[MAX_BLOCKS_IN_PAGE];
 };
 
