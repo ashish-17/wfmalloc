@@ -1,5 +1,7 @@
 # wfmalloc
-Wait-Free dynamic memory allocator.
+A wait-free implementation of a concurrent data object is one that guarantees that any process can complete any operation in a finite number of’ steps, regardless of the execution speeds of the other processes. Here concurrent data object is the data structure shared by concurrent processes.
+
+In this project we plan to create a wait-free dynamic memory allocator.
 
 ##General Design
 Other allocators generally have two tier design structure. At the lowest level all the threads have their own
