@@ -59,7 +59,7 @@ void test_page() {
 void test_local_pool() {
     LOG_PROLOG();
 
-    local_pool_t* pool = create_local_pool();
+    local_pool_t* pool = create_local_pool(10);
 
     void* block = NULL;
 	int i = 0;

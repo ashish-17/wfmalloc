@@ -11,17 +11,23 @@
 #include "list.h"
 #include "config.h"
 #include "page.h"
+#include "shared_pool.h"
+
+typedef struct local_thread_data {
+	list_t bins[MAX_BINS][MAX_MLFQ]; // Every bin has a multi level feedback queue structure.
+} local_thread_data_t;
 
 typedef struct local_pool {
-	list_t bins[MAX_BINS];
+	int count_threads;
+	int count_processors;
+	int* last_shared_pool_idx; // Each threads keeps track of last used shared pool/queue and then fetches next in round robin fashion.
+	local_thread_data_t* thread_data;
 } local_pool_t;
 
-local_pool_t* create_local_pool();
+local_pool_t* create_local_pool(int count_threads);
 
-void add_page(local_pool_t *pool, page_t *page);
+int add_page(local_pool_t *pool, page_t *page, int thread_id);
 
-page_t* remove_page(local_pool_t *pool);
-
-void* malloc_block_from_pool(local_pool_t *pool, int block_size);
+void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int thread_id, int block_size);
 
 #endif /* INCLUDES_LOCAL_POOL_H_ */

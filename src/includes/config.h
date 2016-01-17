@@ -20,5 +20,9 @@
 #define MAX_BINS 8 // 4 8 16 32 64 128 256 512
 #define MIN_PAGES_PER_BIN 1
 
+#define MAX_MLFQ 4
+#define MLFQ_THRESHOLD 2
+
+#define CALC_MLFQ_IDX(empty, max) ((empty) == (max) ? 0 : (MAX_MLFQ - (((empty) * MAX_MLFQ) / (max)) - 1))
 
 #endif /* INCLUDES_CONFIG_H_ */

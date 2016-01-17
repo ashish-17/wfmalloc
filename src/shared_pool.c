@@ -48,14 +48,27 @@ shared_pool_t* create_shared_pool(int count_threads) {
 	return pool;
 }
 
-void add_page_shared_pool(shared_pool_t *pool, page_t *page) {
+void add_page_shared_pool(shared_pool_t *pool, page_t *page, int thread_id, int queue_idx) {
 	LOG_PROLOG();
+
+	int bin_idx = quick_log2(page->header.block_size) - quick_log2(MIN_BLOCK_SIZE);
+	wf_enqueue(pool->shared_thread_data[queue_idx].bins[bin_idx], &(page->header.wf_node), pool->op_desc, thread_id);
 
 	LOG_EPILOG();
 }
 
-page_t* remove_page_shared_pool(shared_pool_t *pool) {
+page_t* get_page_shared_pool(shared_pool_t *pool, int thread_id, int queue_idx, int block_size) {
 	LOG_PROLOG();
 
+	page_t* ret = NULL;
+
+	int bin_idx = 0;
+	if (block_size > MIN_BLOCK_SIZE) {
+		bin_idx = quick_log2(upper_power_of_two(block_size)) - quick_log2(MIN_BLOCK_SIZE);
+	}
+
+	ret = wf_dequeue(pool->shared_thread_data[queue_idx].bins[bin_idx], pool->op_desc, thread_id);
+
 	LOG_EPILOG();
+	return ret;
 }
