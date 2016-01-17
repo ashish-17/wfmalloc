@@ -30,4 +30,6 @@ int add_page(local_pool_t *pool, page_t *page, int thread_id);
 
 void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int thread_id, int block_size);
 
+void local_pool_stats(local_pool_t *pool);
+
 #endif /* INCLUDES_LOCAL_POOL_H_ */

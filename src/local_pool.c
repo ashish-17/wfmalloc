@@ -29,11 +29,10 @@ local_pool_t* create_local_pool(int count_threads) {
 	for (thread = 0; thread < count_threads; ++thread) {
 		*(pool->last_shared_pool_idx + thread) = (thread % num_processors);
 		thread_data = (pool->thread_data + thread);
+		block_size = MIN_BLOCK_SIZE;
 		for (bin = 0; bin < MAX_BINS; ++bin) {
 			for (mlfq = 0; mlfq < MAX_MLFQ; ++mlfq) {
 				INIT_LIST_HEAD(&(thread_data->bins[bin][mlfq]));
-				ptr_page = create_page(block_size);
-				add_page(pool, ptr_page, thread);
 			}
 
 			for (page_idx = 0; page_idx < MIN_PAGES_PER_BIN; ++page_idx) {
@@ -95,6 +94,7 @@ void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int
 					list_del(tmp);
 					list_add(tmp, &to_be_updated);
 					tmp = swap_tmp;
+					continue;
 				}
 			}
 
@@ -104,6 +104,8 @@ void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int
 					list_del(tmp);
 					list_add(tmp, &to_be_removed);
 					tmp = swap_tmp;
+				} else {
+					tmp = tmp->next;
 				}
 			} else if (mlfq < (MAX_MLFQ - 1)) {
 				break;
@@ -115,15 +117,23 @@ void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int
 			}
 		}
 
-		list_for_each(tmp, &to_be_removed) {
+		tmp = to_be_removed.next;
+		while(tmp != &to_be_removed) {
+			swap_tmp = tmp->next;
+			list_del(tmp);
 			add_page_shared_pool(shared_pool, (page_t*)list_entry(tmp, page_header_t, node), thread_id, *(pool->last_shared_pool_idx + thread_id) + 1);
 			*(pool->last_shared_pool_idx + thread_id) += 1;
+			tmp = swap_tmp;
 		}
 
-		list_for_each(tmp, &to_be_updated) {
+		tmp = to_be_updated.next;
+		while(tmp != &to_be_updated) {
+			swap_tmp = tmp->next;
+			list_del(tmp);
 			if (add_page(pool, (page_t*) list_entry(tmp, page_header_t, node), thread_id) > 0 && (ptr_page == NULL)) {
 				ptr_page = tmp;
 			}
+			tmp = swap_tmp;
 		}
 
 		if (ptr_page != NULL) {
@@ -131,13 +141,49 @@ void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int
 		}
 	}
 
-	if (ptr_page == NULL) {
+	/*if (ptr_page == NULL) {
 		ptr_page = &(get_page_shared_pool(shared_pool, thread_id, *(pool->last_shared_pool_idx + thread_id) + 1, block_size)->header.node);
 		*(pool->last_shared_pool_idx + thread_id) += 1;
-	}
+	}*/
 
-	block = malloc_block((page_t*) list_entry(ptr_page, page_header_t, node));
+	if (ptr_page != NULL) {
+		block = malloc_block((page_t*) list_entry(ptr_page, page_header_t, node));
+	}
 
 	LOG_EPILOG();
 	return block;
+}
+
+void local_pool_stats(local_pool_t *pool) {
+	LOG_PROLOG();
+
+	LOG_INFO("########--LOCAL POOL--########");
+	LOG_INFO("Number of threads = %d", pool->count_threads);
+	LOG_INFO("Number of processors = %d", pool->count_processors);
+
+	int thread = 0, bin = 0, mlfq = 0;
+	local_thread_data_t* thread_data = NULL;
+	int count_pages = 0;
+	list_t* tmp = NULL;
+	for (thread = 0; thread < pool->count_threads; ++thread) {
+		LOG_INFO("\tThread %d", thread);
+		LOG_INFO("\t\tLast used shared pool idx %d", *(pool->last_shared_pool_idx + thread));
+		thread_data = (pool->thread_data + thread);
+		for (bin = 0; bin < MAX_BINS; ++bin) {
+			LOG_INFO("\t\tBin %d", bin);
+			for (mlfq = 0; mlfq < MAX_MLFQ; ++mlfq) {
+				count_pages = 0;
+				LOG_INFO("\t\t\tMLFQ %d", mlfq);
+				list_for_each(tmp, &(thread_data->bins[bin][mlfq])) {
+
+					LOG_INFO("\t\t\t\tPage %d - Blocks = %d", count_pages, count_empty_blocks((page_t*) list_entry(tmp, page_header_t, node)));
+					count_pages++;
+				}
+
+				LOG_INFO("\t\t\tMLFQ %d has %d pages", mlfq, count_pages);
+			}
+		}
+	}
+
+	LOG_EPILOG();
 }
