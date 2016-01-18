@@ -69,7 +69,11 @@ page_t* get_page_shared_pool(shared_pool_t *pool, int thread_id, int queue_idx, 
 	}
 
 	wf_queue_node_t* tmp = wf_dequeue(pool->shared_thread_data[queue_idx].bins[bin_idx], pool->op_desc, thread_id);
-	ret = (page_t*)list_entry(tmp, page_header_t, wf_node);
+	if (tmp != NULL) {
+		ret = (page_t*)list_entry(tmp, page_header_t, wf_node);
+	} else {
+		ret = create_page(block_size);
+	}
 
 	LOG_EPILOG();
 	return ret;

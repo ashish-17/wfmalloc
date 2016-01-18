@@ -72,14 +72,14 @@ void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int
 
 	local_thread_data_t* thread_data = (pool->thread_data + thread_id);
 	list_t* tmp, *swap_tmp = NULL;
-	list_t* ptr_page = NULL;
+	list_t* ptr_page_node = NULL;
 	list_t to_be_removed, to_be_updated;
 	INIT_LIST_HEAD(&to_be_removed);
 	INIT_LIST_HEAD(&to_be_updated);
 
 	int mlfq = 0;
 	int count_pages = 0;
-	for (mlfq = 0; mlfq < MAX_MLFQ  && (ptr_page == NULL); ++mlfq) {
+	for (mlfq = 0; mlfq < MAX_MLFQ  && (ptr_page_node == NULL); ++mlfq) {
 		count_pages = 0;
 
 		tmp = (&(thread_data->bins[bin_idx][mlfq]))->next;
@@ -87,8 +87,8 @@ void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int
 			count_pages++;
 
 			if (mlfq < (MAX_MLFQ - 1)) {
-				if (ptr_page == NULL) {
-					ptr_page = tmp;
+				if (ptr_page_node == NULL) {
+					ptr_page_node = tmp;
 
 					swap_tmp = tmp->next;
 					list_del(tmp);
@@ -121,8 +121,8 @@ void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int
 		while(tmp != &to_be_removed) {
 			swap_tmp = tmp->next;
 			list_del(tmp);
-			add_page_shared_pool(shared_pool, (page_t*)list_entry(tmp, page_header_t, node), thread_id, *(pool->last_shared_pool_idx + thread_id) + 1);
-			*(pool->last_shared_pool_idx + thread_id) += 1;
+			*(pool->last_shared_pool_idx + thread_id) = (*(pool->last_shared_pool_idx + thread_id) + 1) % pool->count_processors;
+			add_page_shared_pool(shared_pool, (page_t*)list_entry(tmp, page_header_t, node), thread_id, *(pool->last_shared_pool_idx + thread_id));
 			tmp = swap_tmp;
 		}
 
@@ -130,24 +130,25 @@ void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int
 		while(tmp != &to_be_updated) {
 			swap_tmp = tmp->next;
 			list_del(tmp);
-			if (add_page(pool, (page_t*) list_entry(tmp, page_header_t, node), thread_id) > 0 && (ptr_page == NULL)) {
-				ptr_page = tmp;
+			if (add_page(pool, (page_t*) list_entry(tmp, page_header_t, node), thread_id) > 0 && (ptr_page_node == NULL)) {
+				ptr_page_node = tmp;
 			}
 			tmp = swap_tmp;
 		}
 
-		if (ptr_page != NULL) {
+		if (ptr_page_node != NULL) {
 			break;
 		}
 	}
 
-	/*if (ptr_page == NULL) {
-		ptr_page = &(get_page_shared_pool(shared_pool, thread_id, *(pool->last_shared_pool_idx + thread_id) + 1, block_size)->header.node);
-		*(pool->last_shared_pool_idx + thread_id) += 1;
-	}*/
+	if (ptr_page_node == NULL) {
+		*(pool->last_shared_pool_idx + thread_id) = (*(pool->last_shared_pool_idx + thread_id) + 1) % pool->count_processors;
+		ptr_page_node = &(get_page_shared_pool(shared_pool, thread_id, *(pool->last_shared_pool_idx + thread_id), block_size)->header.node);
+		add_page(pool, (page_t*) list_entry(ptr_page_node, page_header_t, node), thread_id);
+	}
 
-	if (ptr_page != NULL) {
-		block = malloc_block((page_t*) list_entry(ptr_page, page_header_t, node));
+	if (ptr_page_node != NULL) {
+		block = malloc_block((page_t*) list_entry(ptr_page_node, page_header_t, node));
 	}
 
 	LOG_EPILOG();

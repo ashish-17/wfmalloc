@@ -67,7 +67,7 @@ void test_local_pool() {
 
 void test_pools() {
     LOG_PROLOG();
-    const int COUNT_THREADS = 1;
+    const int COUNT_THREADS = 10;
 
 	local_pool_t* l_pool = create_local_pool(COUNT_THREADS);
 	shared_pool_t* s_pool = create_shared_pool(COUNT_THREADS);
@@ -75,29 +75,29 @@ void test_pools() {
 	void* block = NULL;
 	int i = 0;
 	int count4 = 0, count8 = 0, count256 = 0, count512 = 0;
-	for (i = 0; i < MAX_BLOCKS_IN_PAGE; ++i) {
-		block = malloc_block_from_pool(l_pool, s_pool, 0, 1);
+	for (i = 0; i < 1545; ++i) {
+		block = malloc_block_from_pool(l_pool, s_pool, 0, 4);
 		if (block != NULL) {
 			count4++;
 		}
 
-		block = malloc_block_from_pool(l_pool, s_pool, 0, 5);
+		block = malloc_block_from_pool(l_pool, s_pool, 0, 16);
 		if (block != NULL) {
 			count8++;
 		}
-		block = malloc_block_from_pool(l_pool, s_pool, 0, 253);
+		block = malloc_block_from_pool(l_pool, s_pool, 0, 256);
 		if (block != NULL) {
 			count256++;
 		}
 
-		block = malloc_block_from_pool(l_pool, s_pool, 0, 260);
+		block = malloc_block_from_pool(l_pool, s_pool, 0, 512);
 		if (block != NULL) {
 			count512++;
 		}
 	}
 
 	LOG_INFO("Num blocks allocated: 4 bytes = %d, 8 bytes = %d, 256 bytes = %d, 512 bytes = %d", count4, count8, count256, count512);
-	local_pool_stats(l_pool);
+	//local_pool_stats(l_pool);
 
 	LOG_EPILOG();
 }
