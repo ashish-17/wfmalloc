@@ -72,7 +72,7 @@ page_t* get_page_shared_pool(shared_pool_t *pool, int thread_id, int queue_idx, 
 	if (tmp != NULL) {
 		ret = (page_t*)list_entry(tmp, page_header_t, wf_node);
 	} else {
-		ret = create_page(block_size);
+		ret = create_page(quick_pow2(quick_log2(MIN_BLOCK_SIZE) + bin_idx));
 	}
 
 	LOG_EPILOG();

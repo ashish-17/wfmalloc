@@ -6,6 +6,7 @@
 #include "includes/local_pool.h"
 #include "includes/queue.h"
 #include "includes/shared_pool.h"
+#include "wfmalloc.h"
 #include <pthread.h>
 #include <string.h>
 
@@ -65,9 +66,55 @@ void test_local_pool() {
     LOG_EPILOG();
 }
 
-void test_pools() {
+typedef struct dummy_data_pools {
+	int thread_id;
+	local_pool_t* l_pool;
+	shared_pool_t* s_pool;
+	int count_malloc_ops;
+} dummy_data_pools_t;
+
+void* test_pools(void* data) {
+	dummy_data_pools_t* thread_data = (dummy_data_pools_t*)data;
+	int i = 0;
+	void** blocks = malloc(sizeof(void*) * thread_data->count_malloc_ops);
+	for (i = 0; i < thread_data->count_malloc_ops; ++i) {
+		blocks[i] = malloc_block_from_pool(thread_data->l_pool, thread_data->s_pool, thread_data->thread_id, 4);
+	}
+
+	for (i = 0; i < thread_data->count_malloc_ops; ++i) {
+		free_block(blocks[i]);
+	}
+
+	return NULL;
+}
+
+void test_pools_multi_thread() {
+    const int COUNT_THREADS = 4;
+    const int MALLOC_OPS = 309*2;
+
+	local_pool_t* l_pool = create_local_pool(COUNT_THREADS);
+	shared_pool_t* s_pool = create_shared_pool(COUNT_THREADS);
+
+	dummy_data_pools_t dummy_data[COUNT_THREADS];
+	pthread_t threads[COUNT_THREADS];
+	int i = 0;
+	for (i = 0; i < COUNT_THREADS; ++i) {
+		dummy_data[i].thread_id = i;
+		dummy_data[i].l_pool = l_pool;
+		dummy_data[i].s_pool = s_pool;
+		dummy_data[i].count_malloc_ops = MALLOC_OPS;
+
+		pthread_create(threads + i, NULL, test_pools, dummy_data + i);
+	}
+
+	for (i = 0; i < COUNT_THREADS; ++i) {
+		pthread_join(threads[i], NULL);
+	}
+}
+
+void test_pools_single_thread() {
     LOG_PROLOG();
-    const int COUNT_THREADS = 10;
+    const int COUNT_THREADS = 1;
 
 	local_pool_t* l_pool = create_local_pool(COUNT_THREADS);
 	shared_pool_t* s_pool = create_shared_pool(COUNT_THREADS);
@@ -96,8 +143,8 @@ void test_pools() {
 		}
 	}
 
+	local_pool_stats(l_pool);
 	LOG_INFO("Num blocks allocated: 4 bytes = %d, 8 bytes = %d, 256 bytes = %d, 512 bytes = %d", count4, count8, count256, count512);
-	//local_pool_stats(l_pool);
 
 	LOG_EPILOG();
 }
@@ -231,6 +278,45 @@ void test_wf_dequeue() {
 	LOG_EPILOG();
 }
 
+void* test_worker_wfmalloc(void* data) {
+    LOG_PROLOG();
+
+    const int COUNT_MALLOC_OPS = 100;
+    int thread_id = *((int*)data);
+    int i = 0;
+    void** mem = malloc(sizeof(void*) * COUNT_MALLOC_OPS);
+    for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
+    	mem[i] = wfmalloc(5, thread_id);
+    	wffree(mem[i]);
+    }
+
+	LOG_EPILOG();
+	return NULL;
+}
+
+void test_wfmalloc() {
+    LOG_PROLOG();
+
+    const int COUNT_THREADS = 10;
+
+    wfinit(COUNT_THREADS);
+
+    pthread_t threads[COUNT_THREADS];
+    int data[COUNT_THREADS];
+
+    int i = 0;
+    for (i = 0; i < COUNT_THREADS; ++i) {
+    	data[i] = i;
+    	pthread_create(threads + i, NULL, test_worker_wfmalloc, data + i);
+    }
+
+    for (i = 0; i < COUNT_THREADS; ++i) {
+    	pthread_join(threads[i], NULL);
+    }
+
+	LOG_EPILOG();
+}
+
 int main() {
     LOG_INIT_CONSOLE();
     LOG_INIT_FILE();
@@ -239,7 +325,9 @@ int main() {
     //test_wf_queue();
     //test_wf_dequeue();
     //test_local_pool();
-    test_pools();
+    //test_pools_single_thread();
+    //test_pools_multi_thread();
+    test_wfmalloc();
 
     LOG_CLOSE();
     return 0;
