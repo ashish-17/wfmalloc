@@ -94,15 +94,15 @@ void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int
 					list_del(tmp);
 					list_add(tmp, &to_be_updated);
 					tmp = swap_tmp;
-					continue;
+					break;//continue;
 				}
 			}
 
 			if (mlfq < MLFQ_THRESHOLD) {
 				if (count_pages > MIN_PAGES_PER_BIN) {
 					swap_tmp = tmp->next;
-					list_del(tmp);
-					list_add(tmp, &to_be_removed);
+					/*list_del(tmp);
+					list_add(tmp, &to_be_removed);*/
 					tmp = swap_tmp;
 				} else {
 					tmp = tmp->next;
