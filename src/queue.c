@@ -10,6 +10,7 @@
 #include "includes/queue.h"
 #include "includes/logger.h"
 #include "includes/atomic.h"
+#include "includes/utils.h"
 #include <pthread.h>
 
 #define STAMPED_REF_TO_REF(ptr, ref_type) ((ref_type*)((ptr)->ref))
@@ -185,7 +186,7 @@ wf_queue_node_t* wf_dequeue(wf_queue_head_t *q, wf_queue_op_head_t* op_desc, int
 	help_finish_deq(q, op_desc, thread_id);
 
 	node = STAMPED_REF_TO_REF(*(op_desc->ref_mem.ops + thread_id), wf_queue_op_desc_t)->node;
-	if (node == NULL) {
+	if (unlikely(node == NULL)) {
 		LOG_WARN("Dequeued node is NULL");
 	}
 
@@ -202,7 +203,7 @@ void help(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id, lo
 	for (thread = 0; thread < num_threads; ++thread) {
 		op_tmp = STAMPED_REF_TO_REF(*(op_desc->ref_mem.ops + thread), wf_queue_op_desc_t);
 		if ((op_tmp->pending == 1) && (op_tmp->phase <= phase)) {
-			if (op_tmp->enqueue == 1) {
+			if (unlikely(op_tmp->enqueue == 1)) {
 				help_enq(queue, op_desc, thread_id, thread, phase);
 			} else {
 				help_deq(queue, op_desc, thread_id, thread, phase);
