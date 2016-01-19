@@ -25,5 +25,6 @@ static const long long TOTAL_INIT_MEMORY = 2147483648; // 2GB
 #define MLFQ_THRESHOLD 2
 
 #define CALC_MLFQ_IDX(empty, max) ((empty) == (max) ? 0 : (MAX_MLFQ - (((empty) * MAX_MLFQ) / (max)) - 1))
+#define MIN_OPS_BEFORE_SCAN 4
 
 #endif /* INCLUDES_CONFIG_H_ */

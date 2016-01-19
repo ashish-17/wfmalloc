@@ -44,6 +44,7 @@ local_pool_t* create_local_pool(int count_threads) {
 				add_page(pool, ptr_page, thread);
 			}
 
+			thread_data->counter_scan[bin] = 0;
 			block_size *= 2;
 		}
 	}
@@ -76,6 +77,8 @@ void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int
 	}
 
 	local_thread_data_t* thread_data = (pool->thread_data + thread_id);
+	thread_data->counter_scan[bin_idx] += 1;
+
 	list_t* tmp, *swap_tmp = NULL;
 	list_t* ptr_page_node = NULL;
 	list_t to_be_removed, to_be_updated;
@@ -92,13 +95,20 @@ void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int
 			if (likely(mlfq < (MAX_MLFQ - 1))) {
 				ptr_page_node = tmp;
 
-				swap_tmp = tmp->next;
+				if (unlikely(thread_data->counter_scan[bin_idx] >= MIN_OPS_BEFORE_SCAN)) {
+					swap_tmp = tmp->next;
 
-				list_del(tmp);
-				list_add(tmp, &to_be_updated);
-				tmp = swap_tmp;
+					list_del(tmp);
+					list_add(tmp, &to_be_updated);
+					tmp = swap_tmp;
 
-				thread_data->count_pages_in_queue[bin_idx][mlfq] -= 1;
+					thread_data->count_pages_in_queue[bin_idx][mlfq] -= 1;
+					thread_data->counter_scan[bin_idx] = 0;
+				} else {
+					tmp = tmp->next;
+					thread_data->counter_scan[bin_idx] += 1;
+				}
+
 				count_pages = thread_data->count_pages_in_queue[bin_idx][0] + thread_data->count_pages_in_queue[bin_idx][1] +
 						thread_data->count_pages_in_queue[bin_idx][2] + thread_data->count_pages_in_queue[bin_idx][3];
 

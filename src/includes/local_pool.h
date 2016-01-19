@@ -17,6 +17,7 @@
 typedef struct local_thread_data {
 	list_t bins[MAX_BINS][MAX_MLFQ]; // Every bin has a multi level feedback queue structure.
 	uint32_t count_pages_in_queue[MAX_BINS][MAX_MLFQ];
+	uint32_t counter_scan[MAX_BINS];
 } local_thread_data_t;
 
 typedef struct local_pool {
