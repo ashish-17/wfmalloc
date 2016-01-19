@@ -114,7 +114,9 @@ void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int
 				thread_data->count_pages_in_queue[bin_idx][mlfq] -= 1;
 			}
 		}
+	}
 
+	if (unlikely(list_empty(&to_be_removed) == 0)) {
 		tmp = to_be_removed.next;
 		while(tmp != &to_be_removed) {
 			swap_tmp = tmp->next;
@@ -123,7 +125,9 @@ void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int
 			add_page_shared_pool(shared_pool, (page_t*)list_entry(tmp, page_header_t, node), thread_id, *(pool->last_shared_pool_idx + thread_id));
 			tmp = swap_tmp;
 		}
+	}
 
+	if (unlikely(list_empty(&to_be_updated) == 0)) {
 		tmp = to_be_updated.next;
 		while(tmp != &to_be_updated) {
 			swap_tmp = tmp->next;
