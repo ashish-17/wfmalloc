@@ -52,7 +52,7 @@
 									<additionalInput kind="additionalinput" paths="$(LIBS)"/>
 								</inputType>
 								<outputType id="cdt.managedbuild.tool.gnu.c.linker.output.so.2108329029" outputPrefix="lib" superClass="cdt.managedbuild.tool.gnu.c.linker.output.so"/>
-								<outputType id="cdt.managedbuild.tool.gnu.c.linker.output.123944298" outputPrefix="lib" superClass="cdt.managedbuild.tool.gnu.c.linker.output"/>
+								<outputType id="cdt.managedbuild.tool.gnu.c.linker.output.123944298" outputPrefix="" superClass="cdt.managedbuild.tool.gnu.c.linker.output"/>
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.cpp.linker.exe.debug.216458970" name="GCC C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.exe.debug">
 								<option defaultValue="true" id="gnu.cpp.link.option.shared.112767889" name="Shared (-shared)" superClass="gnu.cpp.link.option.shared" valueType="boolean"/>

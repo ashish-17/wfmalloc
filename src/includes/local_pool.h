@@ -12,14 +12,17 @@
 #include "config.h"
 #include "page.h"
 #include "shared_pool.h"
+#include <stdint.h>
 
 typedef struct local_thread_data {
 	list_t bins[MAX_BINS][MAX_MLFQ]; // Every bin has a multi level feedback queue structure.
+	uint32_t count_pages_in_queue[MAX_BINS][MAX_MLFQ];
 } local_thread_data_t;
 
 typedef struct local_pool {
 	int count_threads;
 	int count_processors;
+	int min_pages_per_bin;
 	int* last_shared_pool_idx; // Each threads keeps track of last used shared pool/queue and then fetches next in round robin fashion.
 	local_thread_data_t* thread_data;
 } local_pool_t;

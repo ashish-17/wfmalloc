@@ -26,11 +26,12 @@ shared_pool_t* create_shared_pool(int count_threads) {
 	int bin = 0;
 	int queue = 0;
 	int pages = 0;
+	int min_pages_per_bin = MIN_PAGES_PER_BIN(count_threads);
 	page_t* ptr_page = NULL;
 	for (queue = 0; queue < num_processors; ++queue) {
 		int block_size = MIN_BLOCK_SIZE;
 		for (bin = 0; bin < MAX_BINS; ++bin) {
-			for (pages = 0; pages < (MIN_PAGES_PER_BIN + 1); ++pages) {
+			for (pages = 0; pages < (min_pages_per_bin + 1); ++pages) {
 				ptr_page = create_page(block_size);
 				init_wf_queue_node(&(ptr_page->header.wf_node));
 

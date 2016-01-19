@@ -281,7 +281,7 @@ void test_wf_dequeue() {
 void* test_worker_wfmalloc(void* data) {
     LOG_PROLOG();
 
-    const int COUNT_MALLOC_OPS = 1000000;
+    const int COUNT_MALLOC_OPS = 100;
     int thread_id = *((int*)data);
     int i = 0;
     void** mem = malloc(sizeof(void*) * COUNT_MALLOC_OPS);
