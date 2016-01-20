@@ -76,3 +76,13 @@ requested. This leads to very high ratio of used memory to allocated from OS mem
 or make sure that no one steals fro a stack if there is only one page in it.
 3. Donation is needed.
 4. Probably hazardpointers would be needed too.
+
+## TODO:
+1. Remove malloc from the code
+2. Check for execution path > 512
+3. Remove thread id from wfmalloc. Threadlocal can be used in some way.
+4. What about destroying the allocator. There is init but no destruction.
+5. Create static library.
+6. Write the wrappers for wffree and wfmalloc.
+7. Allocate larger number of pages from OS.
+8. How are you maintaining the wfqueue for the memory that you ask from the OS
