@@ -25,6 +25,7 @@ typedef struct mem_block_header {
 struct page_header {
 	uint32_t block_size;
 	uint32_t max_blocks;
+	uint32_t min_free_blocks;
 	list_t node;
 	wf_queue_node_t wf_node;
 	uint8_t block_flags[MAX_BLOCKS_IN_PAGE];
@@ -40,6 +41,8 @@ page_t* create_page(uint32_t block_size);
 int find_first_empty_block(page_t* ptr);
 
 int count_empty_blocks(page_t* ptr);
+
+uint32_t get_min_free_blocks(page_t* ptr);
 
 bool has_empty_block(page_t* ptr);
 

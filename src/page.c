@@ -16,6 +16,7 @@ page_t* create_page(uint32_t block_size) {
 	page_t *ptr_page = (page_t*) malloc(sizeof(page_t));
 	ptr_page->header.block_size = block_size;
 	ptr_page->header.max_blocks = ((sizeof(page_t) - sizeof(page_header_t)) / BLOCK_SIZE(block_size));
+	ptr_page->header.min_free_blocks = ptr_page->header.max_blocks;
 	memset(ptr_page->header.block_flags, BLOCK_OCCUPIED, sizeof(ptr_page->header.block_flags));
 	memset(ptr_page->header.block_flags, BLOCK_EMPTY, (ptr_page->header.max_blocks));
 
@@ -53,8 +54,17 @@ int count_empty_blocks(page_t* ptr) {
 		}
 	}
 
+	ptr->header.min_free_blocks = count;
+
 	LOG_EPILOG();
 	return count;
+}
+
+
+uint32_t get_min_free_blocks(page_t* ptr) {
+	LOG_PROLOG();
+	LOG_EPILOG();
+	return ptr->header.min_free_blocks;
 }
 
 bool has_empty_block(page_t* ptr) {
@@ -82,6 +92,8 @@ void* malloc_block(page_t* ptr) {
 		block_header->idx = block_idx;
 
 		block = (char*)block + sizeof(mem_block_header_t);
+
+		ptr->header.min_free_blocks -= 1;
 	}
 
 	LOG_EPILOG();

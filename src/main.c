@@ -281,14 +281,17 @@ void test_wf_dequeue() {
 void* test_worker_wfmalloc(void* data) {
     LOG_PROLOG();
 
-    const int COUNT_MALLOC_OPS = 100;
+    const int COUNT_MALLOC_OPS = 1000000;
     int thread_id = *((int*)data);
     int i = 0;
     void** mem = malloc(sizeof(void*) * COUNT_MALLOC_OPS);
     for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
-    	mem[i] = wfmalloc(4, thread_id);
-    	wffree(mem[i]);
+    	mem[i] = wfmalloc(512, thread_id);
     }
+
+	for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
+		wffree(mem[i]);
+	}
 
 	LOG_EPILOG();
 	return NULL;
