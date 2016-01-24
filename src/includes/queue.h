@@ -72,4 +72,6 @@ void wf_enqueue(wf_queue_head_t *q, wf_queue_node_t* node, wf_queue_op_head_t* o
 
 wf_queue_node_t* wf_dequeue(wf_queue_head_t *q, wf_queue_op_head_t* op_desc, int thread_id);
 
+int wf_queue_count_nodes(wf_queue_head_t* head);
+
 #endif /* INCLUDES_QUEUE_H_ */

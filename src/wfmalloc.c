@@ -27,4 +27,8 @@ void wffree(void* ptr) {
 	free_block(ptr);
 }
 
+void wfstats() {
+	local_pool_stats(l_pool);
+	shared_pool_stats(s_pool);
+}
 

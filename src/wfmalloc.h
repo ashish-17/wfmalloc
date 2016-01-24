@@ -16,4 +16,6 @@ void* wfmalloc(size_t bytes, int thread_id);
 
 void wffree(void* ptr);
 
+void wfstats();
+
 #endif /* WFMALLOC_H_ */

@@ -186,9 +186,9 @@ wf_queue_node_t* wf_dequeue(wf_queue_head_t *q, wf_queue_op_head_t* op_desc, int
 	help_finish_deq(q, op_desc, thread_id);
 
 	node = STAMPED_REF_TO_REF(*(op_desc->ref_mem.ops + thread_id), wf_queue_op_desc_t)->node;
-	if (unlikely(node == NULL)) {
+	/*if (unlikely(node == NULL)) {
 		LOG_WARN("Dequeued node is NULL");
-	}
+	}*/
 
 	LOG_EPILOG();
 	return node;
@@ -446,4 +446,21 @@ void help_finish_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 	}
 
 	LOG_EPILOG();
+}
+
+
+int wf_queue_count_nodes(wf_queue_head_t* head) {
+	LOG_PROLOG();
+
+	int count = 0;
+	stamped_ref_t* tmp_head = head->head;
+	stamped_ref_t* tmp_tail = head->tail;
+	while (tmp_head->ref != NULL) {
+		count++;
+		tmp_head = STAMPED_REF_TO_REF(tmp_head, wf_queue_node_t)->next;
+	}
+
+	LOG_EPILOG();
+
+	return count;
 }

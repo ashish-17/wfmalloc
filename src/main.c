@@ -286,7 +286,7 @@ void* test_worker_wfmalloc(void* data) {
     int i = 0;
     void** mem = malloc(sizeof(void*) * COUNT_MALLOC_OPS);
     for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
-    	mem[i] = wfmalloc(512, thread_id);
+    	mem[i] = wfmalloc(128, thread_id);
     }
 
 	for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
@@ -303,6 +303,7 @@ void test_wfmalloc() {
     const int COUNT_THREADS = 10;
 
     wfinit(COUNT_THREADS);
+    wfstats();
 
     pthread_t threads[COUNT_THREADS];
     int data[COUNT_THREADS];
@@ -317,6 +318,161 @@ void test_wfmalloc() {
     	pthread_join(threads[i], NULL);
     }
 
+    wfstats();
+
+	LOG_EPILOG();
+}
+
+
+typedef struct _ThreadData {
+    int allocatorNo;
+    int nThreads;
+    int minSize;
+    int maxSize;
+    int blocksPerThread;
+    int threadId;
+    char **blkp;
+    long count;
+} ThreadData;
+
+int startClock;
+int stopClock;
+
+int randomNumber(int min, int max) {
+	return (min + (rand() % (max - min + 1)));
+}
+
+void distribute(int blocksPerThread, int minSize, int maxSize, char** blkp, int allocatorNo, int distributorId) {
+    LOG_PROLOG();
+
+	int blkSize, i = 0;
+	for (i = 0; i < blocksPerThread; i++) {
+		blkSize = randomNumber(minSize, maxSize);
+		if (allocatorNo == 1) {
+			blkp[i] = (char*) wfmalloc(blkSize, distributorId);
+		} else {
+			blkp[i] = (char*) malloc(blkSize);
+		}
+	}
+
+	LOG_EPILOG();
+}
+
+void initialRoundOfAllocationFree(int numOfBlocks, int minSize, int maxSize, int allocatorNo, int threadId) {
+    LOG_PROLOG();
+
+	int blkSize, victim, i = 0;
+	char *blkp[numOfBlocks];
+
+	for (i = 0; i < numOfBlocks; i++) {
+		blkSize = randomNumber(minSize, maxSize);
+		if (allocatorNo == 1) {
+			blkp[i] = (char*) wfmalloc(blkSize, threadId);
+		} else {
+			blkp[i] = (char*) malloc(blkSize);
+		}
+	}
+
+	for (i = 0; i < numOfBlocks; i++) {
+		victim = randomNumber(0, numOfBlocks - i - 1);
+		if (allocatorNo == 1) {
+			wffree(blkp[victim]);
+		} else {
+			free(blkp[victim]);
+		}
+		blkp[victim] = blkp[numOfBlocks - i - 1];
+		blkp[numOfBlocks - i - 1] = NULL;
+	}
+
+	LOG_EPILOG();
+}
+
+void* worker(void *data) {
+    LOG_PROLOG();
+
+	while (startClock != 1);
+
+	ThreadData* threadData = (ThreadData*) data;
+	int victim, blkSize;
+
+	while (1) {
+		victim = randomNumber(0, threadData->blocksPerThread - 1);
+		if (threadData->allocatorNo == 1) {
+			wffree(threadData->blkp[victim]);
+		} else {
+			free(threadData->blkp[victim]);
+		}
+		blkSize = randomNumber(threadData->minSize, threadData->maxSize);
+		if (threadData->allocatorNo == 1) {
+			threadData->blkp[victim] = (char*) wfmalloc(blkSize,
+					threadData->threadId);
+		} else {
+			threadData->blkp[victim] = (char*) malloc(blkSize);
+		}
+		threadData->count++;
+		if (stopClock == 1) {
+			break;
+		}
+	}
+
+	LOG_EPILOG();
+}
+
+void test_larson(int allocatorNo, int nThreads,  int numOfBlocks, int minSize, int maxSize, unsigned timeSlice) {
+    LOG_PROLOG();
+
+	startClock = 0;
+	stopClock = 0;
+
+	int numBlocksPerThread;
+	long int totalCount = 0;
+
+	srand(time(NULL));
+
+	ThreadData threadData[nThreads];
+	pthread_t threads[nThreads];
+
+	if (allocatorNo == 1) {
+		wfinit(nThreads + 1);
+	}
+
+	// rounding down numOfBlocks to nearest multiple of nThreads
+	numBlocksPerThread = numOfBlocks / nThreads;
+	numOfBlocks = numBlocksPerThread * nThreads;
+
+	char *blkp[numOfBlocks];
+	initialRoundOfAllocationFree(numOfBlocks, minSize, maxSize, allocatorNo, nThreads);
+	int t = 0, i=0;
+	for (i = 0; i < nThreads; i++) {
+		distribute(numBlocksPerThread, minSize, maxSize, (blkp + (i * numBlocksPerThread)), allocatorNo, nThreads);
+	}
+
+	for (t = 0; t < nThreads; t++) {
+		threadData[t].minSize = minSize;
+		threadData[t].maxSize = maxSize;
+		threadData[t].blocksPerThread = numBlocksPerThread;
+		threadData[t].threadId = t;
+		threadData[t].allocatorNo = allocatorNo;
+		threadData[t].nThreads = nThreads;
+		threadData[t].blkp = (blkp + (t * numBlocksPerThread));
+		threadData[t].count = 0;
+		pthread_create((threads + t), NULL, worker, (threadData + t));
+	}
+
+	startClock = 1;
+	sleep(timeSlice);
+	stopClock = 1;
+
+	for (t = 0; t < nThreads; t++) {
+		pthread_join(threads[t], NULL);
+	}
+
+	for (t = 0; t < nThreads; t++) {
+		totalCount += threadData[t].count;
+	}
+
+	LOG_DEBUG("%ld", totalCount);
+
 	LOG_EPILOG();
 }
 
@@ -330,7 +486,9 @@ int main() {
     //test_local_pool();
     //test_pools_single_thread();
     //test_pools_multi_thread();
-    test_wfmalloc();
+    //test_wfmalloc();
+    test_larson(1, 4, 10000, 1, 200, 30);
+    //test_larson(0, 4, 10000, 1, 200, 30);
 
     LOG_CLOSE();
     return 0;
