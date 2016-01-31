@@ -17,6 +17,7 @@ page_t* create_page(uint32_t block_size) {
 	ptr_page->header.block_size = block_size;
 	ptr_page->header.max_blocks = ((sizeof(page_t) - sizeof(page_header_t)) / BLOCK_SIZE(block_size));
 	ptr_page->header.min_free_blocks = ptr_page->header.max_blocks;
+	ptr_page->header.next_free_block_idx = 0;
 	memset(ptr_page->header.block_flags, BLOCK_OCCUPIED, sizeof(ptr_page->header.block_flags));
 	memset(ptr_page->header.block_flags, BLOCK_EMPTY, (ptr_page->header.max_blocks));
 
@@ -31,10 +32,22 @@ int find_first_empty_block(page_t* ptr) {
 
 	int block_idx = 0;
 	int result = -1;
-	for (block_idx = 0; block_idx < ptr->header.max_blocks; ++block_idx) {
-		if (ptr->header.block_flags[block_idx] == BLOCK_EMPTY) {
-			result = block_idx;
-			break;
+	page_header_t *header = &(ptr->header);
+	if (header->next_free_block_idx != -1) {
+		result = header->next_free_block_idx;
+		ptr->header.next_free_block_idx = -1;
+	} else {
+		for (block_idx = 0; block_idx < header->max_blocks; ++block_idx) {
+			if (header->block_flags[block_idx] == BLOCK_EMPTY) {
+				result = block_idx;
+				if ((block_idx + 1) < header->max_blocks) {
+					if (header->block_flags[block_idx+1] == BLOCK_EMPTY) {
+						ptr->header.next_free_block_idx = block_idx+1;
+					}
+				}
+
+				break;
+			}
 		}
 	}
 
@@ -48,9 +61,13 @@ int count_empty_blocks(page_t* ptr) {
 	int count = 0;
 
 	int block_idx = 0;
-	for (block_idx = 0; block_idx < ptr->header.max_blocks; ++block_idx) {
-		if (ptr->header.block_flags[block_idx] == BLOCK_EMPTY) {
+	page_header_t *header = &(ptr->header);
+	for (block_idx = 0; block_idx < header->max_blocks; ++block_idx) {
+		if (header->block_flags[block_idx] == BLOCK_EMPTY) {
 			count++;
+			if (header->next_free_block_idx != -1) {
+				ptr->header.next_free_block_idx = block_idx;
+			}
 		}
 	}
 

@@ -26,6 +26,7 @@ struct page_header {
 	uint32_t block_size;
 	uint32_t max_blocks;
 	uint32_t min_free_blocks;
+	int next_free_block_idx;
 	list_t node;
 	wf_queue_node_t wf_node;
 	uint8_t block_flags[MAX_BLOCKS_IN_PAGE];

@@ -8,6 +8,7 @@
 #define LOG_LEVEL_WARN 2 // Include Warnings in the log
 #define LOG_LEVEL_ERROR 3 // Include the error and related description
 #define LOG_LEVEL_DEBUG 4 // Include Debug info in the  logs
+/*#define LOG_LEVEL_STATS 5*/ // Uncomment this line to Compile and include statistics info
 #define LOG_LEVEL_VERBOSE 0xffff // All the logs (Include prolog/epilog and other such logs)
 
 #define LOG_OUTPUT_CONSOLE 0
@@ -65,6 +66,11 @@ void _log_write(const char *const func,
 #define LOG_WARN(...) _LOG_MSG(LOG_LEVEL_WARN, __VA_ARGS__);
 #define LOG_ERROR(...) _LOG_MSG(LOG_LEVEL_ERROR, __VA_ARGS__);
 #define LOG_DEBUG(...) _LOG_MSG(LOG_LEVEL_DEBUG, __VA_ARGS__);
+
+#ifdef LOG_LEVEL_STATS
+#define LOG_STATS(...) _LOG_MSG(LOG_LEVEL_STATS, __VA_ARGS__);
+#endif
+
 #define LOG_PROLOG() _LOG_MSG_PREFIXED(LOG_LEVEL_VERBOSE, LOG_PREFIX_PROLOG);
 #define LOG_EPILOG() _LOG_MSG_PREFIXED(LOG_LEVEL_VERBOSE, LOG_PREFIX_EPILOG);
 

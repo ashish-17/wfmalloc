@@ -286,7 +286,7 @@ void* test_worker_wfmalloc(void* data) {
     int i = 0;
     void** mem = malloc(sizeof(void*) * COUNT_MALLOC_OPS);
     for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
-    	mem[i] = wfmalloc(128, thread_id);
+    	mem[i] = wfmalloc(32, thread_id);
     }
 
 	for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
@@ -471,7 +471,7 @@ void test_larson(int allocatorNo, int nThreads,  int numOfBlocks, int minSize, i
 		totalCount += threadData[t].count;
 	}
 
-	LOG_DEBUG("%ld", totalCount);
+	printf("\n%ld", totalCount);
 
 	LOG_EPILOG();
 }
@@ -487,8 +487,10 @@ int main() {
     //test_pools_single_thread();
     //test_pools_multi_thread();
     //test_wfmalloc();
-    test_larson(1, 4, 10000, 1, 200, 30);
-    //test_larson(0, 4, 10000, 1, 200, 30);
+    test_larson(1, 4, 30000, 8, 8, 5);
+    test_larson(0, 4, 30000, 8, 8, 5);
+
+	wfstats();
 
     LOG_CLOSE();
     return 0;

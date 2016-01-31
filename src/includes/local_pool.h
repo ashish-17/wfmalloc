@@ -12,12 +12,22 @@
 #include "config.h"
 #include "page.h"
 #include "shared_pool.h"
+#include "logger.h"
 #include <stdint.h>
 
 typedef struct local_thread_data {
 	list_t bins[MAX_BINS][MAX_MLFQ]; // Every bin has a multi level feedback queue structure.
 	uint32_t count_pages_in_queue[MAX_BINS][MAX_MLFQ];
 	uint32_t counter_scan[MAX_BINS];
+	page_t* page_cache;
+
+#ifdef LOG_LEVEL_STATS
+	long int count_request_shared_pool;
+	long int count_back2_shared_pool;
+	long int count_mlfq_change;
+	long int count_malloc;
+	long int count_blocks_counting_ops;
+#endif
 } local_thread_data_t;
 
 typedef struct local_pool {

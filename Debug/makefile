@@ -35,7 +35,7 @@ libwfmalloc.so: $(OBJS) $(USER_OBJS)
 
 # Other Targets
 clean:
-	-$(RM) $(OBJS)$(C_DEPS)$(LIBRARIES) libwfmalloc.so
+	-$(RM) $(LIBRARIES)$(OBJS)$(C_DEPS) libwfmalloc.so
 	-@echo ' '
 
 .PHONY: all clean dependents
