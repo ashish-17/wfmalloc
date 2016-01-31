@@ -8,6 +8,7 @@
 #include "includes/local_pool.h"
 #include "includes/shared_pool.h"
 #include "includes/page.h"
+#include "includes/logger.h"
 #include <stdlib.h>
 
 static local_pool_t* l_pool = NULL;
@@ -28,7 +29,12 @@ void wffree(void* ptr) {
 }
 
 void wfstats() {
+    LOG_INIT_CONSOLE();
+    LOG_INIT_FILE();
+
 	local_pool_stats(l_pool);
-	shared_pool_stats(s_pool);
+	//shared_pool_stats(s_pool);
+
+    LOG_CLOSE();
 }
 

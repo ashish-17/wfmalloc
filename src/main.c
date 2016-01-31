@@ -486,11 +486,11 @@ int main() {
     //test_local_pool();
     //test_pools_single_thread();
     //test_pools_multi_thread();
-    //test_wfmalloc();
-    test_larson(1, 4, 30000, 8, 8, 5);
-    test_larson(0, 4, 30000, 8, 8, 5);
+    test_wfmalloc();
+    //test_larson(1, 1, 10000, 4, 8, 5);
+    //test_larson(0, 4, 1000, 4, 8, 5);
 
-	wfstats();
+	//wfstats();
 
     LOG_CLOSE();
     return 0;

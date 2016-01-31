@@ -10,6 +10,7 @@
 #include "includes/logger.h"
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 local_pool_t* create_local_pool(int count_threads) {
 	LOG_PROLOG();
@@ -54,6 +55,8 @@ local_pool_t* create_local_pool(int count_threads) {
 			thread_data->count_back2_shared_pool = 0;
 			thread_data->count_mlfq_change = 0;
 			thread_data->count_malloc = 0;
+			thread_data->time_malloc_shared_pool = 0;
+			thread_data->time_malloc_total = 0;
 		#endif
 	}
 
@@ -104,6 +107,11 @@ int add_page(local_pool_t *pool, page_t *page, int thread_id) {
 
 void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int thread_id, int block_size) {
 	LOG_PROLOG();
+
+#ifdef LOG_LEVEL_STATS
+	struct timeval s, e;
+	gettimeofday(&s, NULL);
+#endif
 
 	void* block = NULL;
 	int bin_idx = 0;
@@ -212,21 +220,25 @@ void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int
 	}
 
 	if (unlikely(ptr_page_node == NULL)) {
+#ifdef LOG_LEVEL_STATS
+	struct timeval ss, es;
+	gettimeofday(&ss, NULL);
+#endif
 		*(pool->last_shared_pool_idx + thread_id) = (*(pool->last_shared_pool_idx + thread_id) + 1) % pool->count_processors;
 		ptr_page_node = &(get_page_shared_pool(shared_pool, thread_id, *(pool->last_shared_pool_idx + thread_id), block_size)->header.node);
 		thread_data->page_cache = (page_t*) list_entry(ptr_page_node, page_header_t, node);
 
 #ifdef LOG_LEVEL_STATS
 		thread_data->count_request_shared_pool++;
+		gettimeofday(&es, NULL);
+		long int timeTakenSharedMalloc = ((es.tv_sec * 1000000 + es.tv_usec) - (ss.tv_sec * 1000000 + ss.tv_usec ))/1000;
+		thread_data->time_malloc_shared_pool += timeTakenSharedMalloc;
 #endif
 	}
 
 	if (unlikely(block == NULL)) {
 		tmp_page = (page_t*) list_entry(ptr_page_node, page_header_t, node);
 		block = malloc_block(tmp_page);
-		if (block == NULL) {
-			exit(0);
-		}
 #ifdef LOG_LEVEL_STATS
 		//thread_data->count_blocks_counting_ops++;
 #endif
@@ -247,6 +259,12 @@ void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int
 		}
 	}
 
+#ifdef LOG_LEVEL_STATS
+	gettimeofday(&e, NULL);
+	long int timeTakenMalloc = ((e.tv_sec * 1000000 + e.tv_usec) - (s.tv_sec * 1000000 + s.tv_usec ))/1000;
+	thread_data->time_malloc_total += timeTakenMalloc;
+#endif
+
 	LOG_EPILOG();
 	return block;
 }
@@ -262,7 +280,7 @@ void local_pool_stats(local_pool_t *pool) {
 	local_thread_data_t* thread_data = NULL;
 	int count_pages = 0;
 	list_t* tmp = NULL;
-	for (thread = 0; thread < pool->count_threads; ++thread) {
+	/*for (thread = 0; thread < pool->count_threads; ++thread) {
 		LOG_DEBUG("\tThread %d", thread);
 		LOG_DEBUG("\t\tLast used shared pool idx %d", *(pool->last_shared_pool_idx + thread));
 		thread_data = (pool->thread_data + thread);
@@ -280,12 +298,14 @@ void local_pool_stats(local_pool_t *pool) {
 				LOG_DEBUG("\t\t\tMLFQ %d has %d pages", mlfq, count_pages);
 			}
 		}
-	}
+	}*/
 
 
 #ifdef LOG_LEVEL_STATS
 	LOG_STATS("########--LOCAL POOL STATS--########");
 	long int total_mallocs = 0;
+	long int time_malloc_total = 0;
+	long int time_malloc_shared_pool = 0;
 	for (thread = 0; thread < pool->count_threads; ++thread) {
 		LOG_STATS("\tThread %d", thread);
 		thread_data = (pool->thread_data + thread);
@@ -294,9 +314,15 @@ void local_pool_stats(local_pool_t *pool) {
 		LOG_STATS("\t\tCount Block counting ops = %ld", thread_data->count_blocks_counting_ops);
 		LOG_STATS("\t\tCount Shared pool requests = %ld", thread_data->count_request_shared_pool);
 		LOG_STATS("\t\tCount Back 2 Shared pool = %ld", thread_data->count_back2_shared_pool);
+		LOG_STATS("\t\tTotal time spent on malloc = %ld", thread_data->time_malloc_total);
+		LOG_STATS("\t\tTotal time spent in shared pool = %ld (%f %)", thread_data->time_malloc_shared_pool, (float)(thread_data->time_malloc_shared_pool * 100) / thread_data->time_malloc_total);
 		total_mallocs += thread_data->count_malloc;
+		time_malloc_total += thread_data->time_malloc_total;
+		time_malloc_shared_pool += thread_data->time_malloc_shared_pool;
 	}
 	LOG_STATS("\t Malloc Ops = %ld", total_mallocs);
+	LOG_STATS("\t Total time malloc = %ld", time_malloc_total);
+	LOG_STATS("\t Malloc time in shared pool = %ld (%f %)", time_malloc_shared_pool, (float)(time_malloc_shared_pool * 100) / time_malloc_total);
 #endif
 
 	LOG_EPILOG();
