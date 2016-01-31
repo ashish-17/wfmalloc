@@ -312,7 +312,7 @@ void local_pool_stats(local_pool_t *pool) {
 		LOG_STATS("\t\tCount Malloc Ops = %ld", thread_data->count_malloc);
 		LOG_STATS("\t\tCount MLFQ changes = %ld (%f %)", thread_data->count_mlfq_change, (float)(thread_data->count_mlfq_change * 100) / thread_data->count_malloc);
 		LOG_STATS("\t\tCount Block counting ops = %ld", thread_data->count_blocks_counting_ops);
-		LOG_STATS("\t\tCount Shared pool requests = %ld", thread_data->count_request_shared_pool);
+		LOG_STATS("\t\tCount Shared pool requests = %ld (%f %)", thread_data->count_request_shared_pool, (float)(thread_data->count_request_shared_pool * 100) / thread_data->count_malloc);
 		LOG_STATS("\t\tCount Back 2 Shared pool = %ld", thread_data->count_back2_shared_pool);
 		LOG_STATS("\t\tTotal time spent on malloc = %ld", thread_data->time_malloc_total);
 		LOG_STATS("\t\tTotal time spent in shared pool = %ld (%f %)", thread_data->time_malloc_shared_pool, (float)(thread_data->time_malloc_shared_pool * 100) / thread_data->time_malloc_total);
