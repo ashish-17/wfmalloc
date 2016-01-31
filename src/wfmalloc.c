@@ -29,7 +29,7 @@ void wffree(void* ptr) {
 }
 
 void wfstats() {
-    LOG_INIT_CONSOLE();
+    //LOG_INIT_CONSOLE();
     LOG_INIT_FILE();
 
 	local_pool_stats(l_pool);
