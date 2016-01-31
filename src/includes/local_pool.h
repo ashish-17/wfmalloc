@@ -29,6 +29,7 @@ typedef struct local_thread_data {
 	long int count_blocks_counting_ops;
 	long int time_malloc_total;
 	long int time_malloc_shared_pool;
+	long int time_malloc_system_call;
 #endif
 } local_thread_data_t;
 

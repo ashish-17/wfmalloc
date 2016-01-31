@@ -9,6 +9,7 @@
 #include "includes/shared_pool.h"
 #include "includes/logger.h"
 #include "includes/utils.h"
+#include "includes/local_pool.h"
 #include <unistd.h>
 #include <stdlib.h>
 
@@ -59,7 +60,7 @@ void add_page_shared_pool(shared_pool_t *pool, page_t *page, int thread_id, int 
 	LOG_EPILOG();
 }
 
-page_t* get_page_shared_pool(shared_pool_t *pool, int thread_id, int queue_idx, int block_size) {
+page_t* get_page_shared_pool(shared_pool_t *pool, local_pool_t *l_pool, int thread_id, int queue_idx, int block_size) {
 	LOG_PROLOG();
 
 	page_t* ret = NULL;
@@ -73,7 +74,18 @@ page_t* get_page_shared_pool(shared_pool_t *pool, int thread_id, int queue_idx, 
 	if (likely(tmp != NULL)) {
 		ret = (page_t*)list_entry(tmp, page_header_t, wf_node);
 	} else {
+#ifdef LOG_LEVEL_STATS
+	struct timeval s, e;
+	gettimeofday(&s, NULL);
+#endif
+
 		ret = create_page(quick_pow2(quick_log2(MIN_BLOCK_SIZE) + bin_idx));
+
+#ifdef LOG_LEVEL_STATS
+	gettimeofday(&e, NULL);
+	long int timeTakenMalloc = ((e.tv_sec * 1000000 + e.tv_usec) - (s.tv_sec * 1000000 + s.tv_usec ));
+	(l_pool->thread_data+thread_id)->time_malloc_system_call += timeTakenMalloc;
+#endif
 	}
 
 	LOG_EPILOG();
