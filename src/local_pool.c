@@ -231,7 +231,7 @@ void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int
 #ifdef LOG_LEVEL_STATS
 		thread_data->count_request_shared_pool++;
 		gettimeofday(&es, NULL);
-		long int timeTakenSharedMalloc = ((es.tv_sec * 1000000 + es.tv_usec) - (ss.tv_sec * 1000000 + ss.tv_usec ))/1000;
+		long int timeTakenSharedMalloc = ((es.tv_sec * 1000000 + es.tv_usec) - (ss.tv_sec * 1000000 + ss.tv_usec ));
 		thread_data->time_malloc_shared_pool += timeTakenSharedMalloc;
 #endif
 	}
@@ -261,7 +261,7 @@ void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int
 
 #ifdef LOG_LEVEL_STATS
 	gettimeofday(&e, NULL);
-	long int timeTakenMalloc = ((e.tv_sec * 1000000 + e.tv_usec) - (s.tv_sec * 1000000 + s.tv_usec ))/1000;
+	long int timeTakenMalloc = ((e.tv_sec * 1000000 + e.tv_usec) - (s.tv_sec * 1000000 + s.tv_usec ));
 	thread_data->time_malloc_total += timeTakenMalloc;
 #endif
 
