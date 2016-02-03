@@ -37,7 +37,9 @@ typedef union page {
 	uint8_t memory[PAGE_SIZE];
 } page_t;
 
-page_t* create_page(uint32_t block_size);
+page_t* create_page_aligned(uint32_t block_size);
+
+//page_t* create_page(uint32_t block_size);
 
 int find_first_empty_block(page_t* ptr);
 

@@ -33,7 +33,7 @@ shared_pool_t* create_shared_pool(int count_threads) {
 		int block_size = MIN_BLOCK_SIZE;
 		for (bin = 0; bin < MAX_BINS; ++bin) {
 			for (pages = 0; pages < (min_pages_per_bin + 1); ++pages) {
-				ptr_page = create_page(block_size);
+				ptr_page = create_page_aligned(block_size);
 				init_wf_queue_node(&(ptr_page->header.wf_node));
 
 				if (pages == 0) {
@@ -79,7 +79,7 @@ page_t* get_page_shared_pool(shared_pool_t *pool, local_pool_t *l_pool, int thre
 	gettimeofday(&s, NULL);
 #endif
 
-		ret = create_page(quick_pow2(quick_log2(MIN_BLOCK_SIZE) + bin_idx));
+		ret = create_page_aligned(quick_pow2(quick_log2(MIN_BLOCK_SIZE) + bin_idx));
 
 #ifdef LOG_LEVEL_STATS
 	gettimeofday(&e, NULL);

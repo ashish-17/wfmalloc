@@ -10,6 +10,8 @@
 #include <pthread.h>
 #include <string.h>
 
+#include <assert.h>
+
 void test_page() {
     LOG_PROLOG();
 
@@ -22,7 +24,7 @@ void test_page() {
     LOG_INFO("Offset max blocks = %u", OFFSETOF(page_header_t, max_blocks));
     LOG_INFO("Offset bitmap = %u", OFFSETOF(page_header_t, block_flags));
 
-    page_t *ptr = create_page(4);
+    page_t *ptr = create_page_aligned(4);
     LOG_INFO("test page block size = %d", ptr->header.block_size);
     LOG_INFO("test page num blocks = %d", ptr->header.max_blocks);
     LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
@@ -284,12 +286,14 @@ void* test_worker_wfmalloc(void* data) {
     const int COUNT_MALLOC_OPS = 1000000;
     int thread_id = *((int*)data);
     int i = 0;
-    void** mem = malloc(sizeof(void*) * COUNT_MALLOC_OPS);
+    int** mem = malloc(sizeof(int*) * COUNT_MALLOC_OPS);
     for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
-    	mem[i] = wfmalloc(32, thread_id);
+    	mem[i] = wfmalloc(rand() % 200, thread_id);
+        *mem[i] = i;
     }
 
 	for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
+                assert(*mem[i] == i);
 		wffree(mem[i]);
 	}
 
@@ -303,7 +307,7 @@ void test_wfmalloc() {
     const int COUNT_THREADS = 10;
 
     wfinit(COUNT_THREADS);
-    wfstats();
+    //wfstats();
 
     pthread_t threads[COUNT_THREADS];
     int data[COUNT_THREADS];
@@ -318,9 +322,9 @@ void test_wfmalloc() {
     	pthread_join(threads[i], NULL);
     }
 
-    wfstats();
+    //wfstats();
 
-	LOG_EPILOG();
+    LOG_EPILOG();
 }
 
 
@@ -477,21 +481,23 @@ void test_larson(int allocatorNo, int nThreads,  int numOfBlocks, int minSize, i
 }
 
 int main() {
-    LOG_INIT_CONSOLE();
-    LOG_INIT_FILE();
-
+    //LOG_INIT_CONSOLE();
+    //LOG_INIT_FILE();
     //test_page();
     //test_wf_queue();
     //test_wf_dequeue();
     //test_local_pool();
     //test_pools_single_thread();
     //test_pools_multi_thread();
+    printf("WFMalloc test\n");
     test_wfmalloc();
-    //test_larson(1, 1, 10000, 4, 8, 5);
-    //test_larson(0, 4, 1000, 4, 8, 5);
+    printf("Larson test 1\n");
+    test_larson(1, 1, 10000, 4, 8, 5);
+    printf("\nLarson test 2\n");
+    test_larson(1, 4, 1000, 4, 8, 5);
+    //printf("Wfstats\n");
+    //wfstats();
 
-	//wfstats();
-
-    LOG_CLOSE();
+    //LOG_CLOSE();
     return 0;
 }

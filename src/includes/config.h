@@ -8,10 +8,13 @@
 #ifndef INCLUDES_CONFIG_H_
 #define INCLUDES_CONFIG_H_
 
-#define PAGE_SIZE 4096
+#define PAGE_BITS 12 //Number of bits to index within a page, or log_2(PAGE_SIZE).
+#define PAGE_SIZE (1 << PAGE_BITS)
+#define PAGE_MASK (~(PAGE_SIZE - 1)) // with respect to PAGE_SIZE
 #define BLOCK_HEADER_SIZE 8
 #define MIN_BLOCK_SIZE 4
-#define MAX_BLOCKS_IN_PAGE ((PAGE_SIZE) / (BLOCK_HEADER_SIZE + MIN_BLOCK_SIZE))
+//#define MAX_BLOCKS_IN_PAGE ((PAGE_SIZE) / (BLOCK_HEADER_SIZE + MIN_BLOCK_SIZE))
+#define MAX_BLOCKS_IN_PAGE ((PAGE_SIZE) / (MIN_BLOCK_SIZE))
 #define BLOCK_SIZE(blk_size) (BLOCK_HEADER_SIZE + blk_size)
 
 #define BLOCK_EMPTY 0
