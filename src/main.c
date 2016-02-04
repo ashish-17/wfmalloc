@@ -17,12 +17,12 @@ void test_page() {
 
     page_header_t header;
     LOG_INFO("Size of header = %d", sizeof(header));
-    LOG_INFO("Size of bitmap = %d", sizeof(header.block_flags));
+    //LOG_INFO("Size of bitmap = %d", sizeof(header.block_flags));
 
     LOG_INFO("Address header = %u", &header);
     LOG_INFO("Offset block size = %u", OFFSETOF(page_header_t, block_size));
     LOG_INFO("Offset max blocks = %u", OFFSETOF(page_header_t, max_blocks));
-    LOG_INFO("Offset bitmap = %u", OFFSETOF(page_header_t, block_flags));
+    //LOG_INFO("Offset bitmap = %u", OFFSETOF(page_header_t, block_flags));
 
     page_t *ptr = create_page_aligned(4);
     LOG_INFO("test page block size = %d", ptr->header.block_size);
@@ -280,20 +280,51 @@ void test_wf_dequeue() {
 	LOG_EPILOG();
 }
 
+void write_to_bytes(char* string, int n_bytes) {
+    LOG_PROLOG();
+    char start = 'a';
+    int i = 0;
+    for (i = 0; i < n_bytes; i++) {
+        string[i] = start;
+	start++;
+    }
+    LOG_EPILOG();
+}
+
+void test_bytes(char* string, int n_bytes) {
+	LOG_PROLOG();
+	char start = 'a';
+    	int i = 0;
+	for (i = 0; i < n_bytes; i++) {
+		assert(string[i] == start);
+		start++;
+	}
+	LOG_EPILOG();
+}
+
+
+
 void* test_worker_wfmalloc(void* data) {
     LOG_PROLOG();
 
-    const int COUNT_MALLOC_OPS = 1000000;
+    const int COUNT_MALLOC_OPS = 100000;
     int thread_id = *((int*)data);
     int i = 0;
-    int** mem = malloc(sizeof(int*) * COUNT_MALLOC_OPS);
+    char* mem[COUNT_MALLOC_OPS];
+    int n_bytes[COUNT_MALLOC_OPS];
     for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
-    	mem[i] = wfmalloc(rand() % 200, thread_id);
-        *mem[i] = i;
+	n_bytes[i] = rand() % 200;
+    	//n_bytes[i] = 256;
+	mem[i] = wfmalloc(n_bytes[i], thread_id);
+	
+	unsigned page_size = ((page_t*)(((uintptr_t)mem[i]) & PAGE_MASK))->header.block_size;
+	printf("%u %u\n", n_bytes[i], page_size);
+	assert(page_size >= n_bytes[i]);
+	write_to_bytes(mem[i], n_bytes[i]);
     }
 
 	for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
-                assert(*mem[i] == i);
+		test_bytes(mem[i], n_bytes[i]);
 		wffree(mem[i]);
 	}
 
@@ -304,7 +335,8 @@ void* test_worker_wfmalloc(void* data) {
 void test_wfmalloc() {
     LOG_PROLOG();
 
-    const int COUNT_THREADS = 10;
+    //const int COUNT_THREADS = 10;
+    const int COUNT_THREADS = 1;
 
     wfinit(COUNT_THREADS);
     //wfstats();
