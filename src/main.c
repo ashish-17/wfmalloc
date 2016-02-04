@@ -10,8 +10,12 @@
 #include <pthread.h>
 #include <string.h>
 
+#include <assert.h>
+
+
 void test_page() {
     LOG_PROLOG();
+
 
     page_header_t header;
     LOG_INFO("Size of header = %d", sizeof(header));
@@ -281,21 +285,26 @@ void test_wf_dequeue() {
 void* test_worker_wfmalloc(void* data) {
     LOG_PROLOG();
 
-    const int COUNT_MALLOC_OPS = 100;
+    const int COUNT_MALLOC_OPS = 100000;
     int thread_id = *((int*)data);
     int* sizes = malloc(sizeof(int) * COUNT_MALLOC_OPS);
     int i = 0;
     void** mem = malloc(sizeof(void*) * COUNT_MALLOC_OPS);
     for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
-    	sizes[i] = (rand() % 100)+1;
+    	sizes[i] = (rand() % 100) + 1;
     	mem[i] = wfmalloc(sizes[i], thread_id);
 
-    	/*mem_block_header_t *block_header = (mem_block_header_t*)((char*)mem[i] - sizeof(mem_block_header_t));
+    	mem_block_header_t *block_header = (mem_block_header_t*)((char*)mem[i] - sizeof(mem_block_header_t));
     	page_t* page_ptr = (page_t*)((char*)block_header - block_header->byte_offset);
+	
+	unsigned req = sizes[i];
+	unsigned ret = page_ptr->header.block_size;
 
-    	LOG_INFO("Requested - %d, Returned = %d", sizes[i], page_ptr->header.block_size);*/
+	if(req > ret) {
+    		LOG_INFO("Requested - %d, Returned = %d", sizes[i], page_ptr->header.block_size);
+		assert(req <= ret);
+    	}
     }
-
 	for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
 		wffree(mem[i]);
 	}
@@ -304,10 +313,10 @@ void* test_worker_wfmalloc(void* data) {
 	return NULL;
 }
 
-void test_wfmalloc() {
+void test_wfmalloc(unsigned COUNT_THREADS) {
     LOG_PROLOG();
 
-    const int COUNT_THREADS = 10;
+    //const int COUNT_THREADS = 10;
 
     wfinit(COUNT_THREADS);
 
@@ -490,7 +499,9 @@ int main() {
     //test_local_pool();
     //test_pools_single_thread();
     //test_pools_multi_thread();
-    test_wfmalloc();
+    test_wfmalloc(1);
+    test_wfmalloc(10);
+    test_wfmalloc(100);
     //test_larson(1, 1, 10000, 4, 8, 5);
     //test_larson(0, 4, 1000, 4, 8, 5);
 
