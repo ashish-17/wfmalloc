@@ -24,7 +24,6 @@
 
 */
 
-#define LOGGING_LEVEL LOG_LEVEL_NONE
 #if defined(LOGGING_LEVEL)
     #define _LOGGING_LEVEL LOGGING_LEVEL
 #else
