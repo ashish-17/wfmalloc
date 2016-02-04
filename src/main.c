@@ -307,24 +307,19 @@ void test_bytes(char* string, int n_bytes) {
 void* test_worker_wfmalloc(void* data) {
     LOG_PROLOG();
 
-    const int COUNT_MALLOC_OPS = 100000;
+    const int COUNT_MALLOC_OPS = 1000000;
     int thread_id = *((int*)data);
-    int* sizes = malloc(sizeof(int) * COUNT_MALLOC_OPS);
-    int i = 0;
-    char* mem[COUNT_MALLOC_OPS];
-    int n_bytes[COUNT_MALLOC_OPS];
-    for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
+    char** mem = malloc(sizeof(char*) * COUNT_MALLOC_OPS);
+    int* n_bytes = malloc(sizeof(int) * COUNT_MALLOC_OPS);
+    for (int i = 0; i < COUNT_MALLOC_OPS; ++i) {
 	n_bytes[i] = rand() % 200;
     	//n_bytes[i] = 256;
 	mem[i] = wfmalloc(n_bytes[i], thread_id);
 	
-	unsigned page_size = ((page_t*)(((uintptr_t)mem[i]) & PAGE_MASK))->header.block_size;
-	//printf("%u %u\n", n_bytes[i], page_size);
-	assert(page_size >= n_bytes[i]);
 	write_to_bytes(mem[i], n_bytes[i]);
     }
 
-	for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
+	for (int i = 0; i < COUNT_MALLOC_OPS; ++i) {
 		test_bytes(mem[i], n_bytes[i]);
 		wffree(mem[i]);
 	}
@@ -333,11 +328,8 @@ void* test_worker_wfmalloc(void* data) {
 	return NULL;
 }
 
-void test_wfmalloc() {
+void test_wfmalloc(int COUNT_THREADS) {
     LOG_PROLOG();
-
-    const int COUNT_THREADS = 10;
-    //const int COUNT_THREADS = 1;
 
     wfinit(COUNT_THREADS);
     //wfstats();
@@ -356,9 +348,58 @@ void test_wfmalloc() {
     }
 
     //wfstats();
-	LOG_EPILOG();
+    LOG_EPILOG();
 }
 
+
+void* test_worker_large_allocations(void* data) {
+    LOG_PROLOG();
+
+    const int COUNT_MALLOC_OPS = 10000;
+    int thread_id = *((int*)data);
+    int* sizes = malloc(sizeof(int) * COUNT_MALLOC_OPS);
+    int i = 0;
+    char* mem[COUNT_MALLOC_OPS];
+    int n_bytes[COUNT_MALLOC_OPS];
+    for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
+	n_bytes[i] = randomNumber(1, 20000);
+    	//n_bytes[i] = 256;
+	mem[i] = wfmalloc(n_bytes[i], thread_id);
+	
+	write_to_bytes(mem[i], n_bytes[i]);
+    }
+
+	for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
+		test_bytes(mem[i], n_bytes[i]);
+		wffree(mem[i]);
+	}
+
+	LOG_EPILOG();
+	return NULL;
+}
+
+void test_large_allocations(int COUNT_THREADS) {
+    LOG_PROLOG();
+
+    wfinit(COUNT_THREADS);
+    //wfstats();
+
+    pthread_t threads[COUNT_THREADS];
+    int data[COUNT_THREADS];
+
+    int i = 0;
+    for (i = 0; i < COUNT_THREADS; ++i) {
+    	data[i] = i;
+    	pthread_create(threads + i, NULL, test_worker_large_allocations, data + i);
+    }
+
+    for (i = 0; i < COUNT_THREADS; ++i) {
+    	pthread_join(threads[i], NULL);
+    }
+
+    //wfstats();
+	LOG_EPILOG();
+}
 
 typedef struct _ThreadData {
     int allocatorNo;
@@ -522,11 +563,18 @@ int main() {
     //test_pools_single_thread();
     //test_pools_multi_thread();
     printf("WFMalloc test\n");
-    test_wfmalloc();
-    printf("Larson test 1\n");
-    test_larson(1, 1, 10000, 4, 8, 5);
-    printf("\nLarson test 2\n");
-    test_larson(1, 4, 1000, 4, 8, 5);
+    test_wfmalloc(1);
+    printf("10 threads\n");
+    test_wfmalloc(10);
+    printf("20 threads\n");
+    test_wfmalloc(20);
+    printf("WFMalloc large allocation test\n");
+    test_large_allocations(1);
+    test_large_allocations(10);
+    //printf("Larson test 1\n");
+    //test_larson(1, 1, 10000, 4, 8, 5);
+    //printf("\nLarson test 2\n");
+    //test_larson(1, 4, 1000, 4, 8, 5);
     //printf("Wfstats\n");
     //wfstats();
 
