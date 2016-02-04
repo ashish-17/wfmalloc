@@ -281,12 +281,19 @@ void test_wf_dequeue() {
 void* test_worker_wfmalloc(void* data) {
     LOG_PROLOG();
 
-    const int COUNT_MALLOC_OPS = 1000000;
+    const int COUNT_MALLOC_OPS = 100;
     int thread_id = *((int*)data);
+    int* sizes = malloc(sizeof(int) * COUNT_MALLOC_OPS);
     int i = 0;
     void** mem = malloc(sizeof(void*) * COUNT_MALLOC_OPS);
     for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
-    	mem[i] = wfmalloc(32, thread_id);
+    	sizes[i] = (rand() % 100)+1;
+    	mem[i] = wfmalloc(sizes[i], thread_id);
+
+    	/*mem_block_header_t *block_header = (mem_block_header_t*)((char*)mem[i] - sizeof(mem_block_header_t));
+    	page_t* page_ptr = (page_t*)((char*)block_header - block_header->byte_offset);
+
+    	LOG_INFO("Requested - %d, Returned = %d", sizes[i], page_ptr->header.block_size);*/
     }
 
 	for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
@@ -303,7 +310,6 @@ void test_wfmalloc() {
     const int COUNT_THREADS = 10;
 
     wfinit(COUNT_THREADS);
-    wfstats();
 
     pthread_t threads[COUNT_THREADS];
     int data[COUNT_THREADS];
@@ -317,8 +323,6 @@ void test_wfmalloc() {
     for (i = 0; i < COUNT_THREADS; ++i) {
     	pthread_join(threads[i], NULL);
     }
-
-    wfstats();
 
 	LOG_EPILOG();
 }

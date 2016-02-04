@@ -32,3 +32,5 @@
 *.dSYM/
 #/Debug/
 /Debug/
+/exe/
+/Release/
