@@ -284,23 +284,33 @@ void* test_worker_wfmalloc(void* data) {
     const int COUNT_MALLOC_OPS = 1000000;
     int thread_id = *((int*)data);
     int i = 0;
-    void** mem = malloc(sizeof(void*) * COUNT_MALLOC_OPS);
+    int* sizes = malloc(sizeof(int) * COUNT_MALLOC_OPS);
+    char** mem = malloc(sizeof(char*) * COUNT_MALLOC_OPS);
     for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
-    	mem[i] = wfmalloc(32, thread_id);
+    	sizes[i] = rand() % 200;
+	mem[i] = wfmalloc(sizes[i], thread_id);
+	
+	mem_block_header_t *block_header = (mem_block_header_t*)((char*)mem[i] - sizeof(mem_block_header_t));
+	page_t* page_ptr = (page_t*)((char*)block_header - block_header->byte_offset);
+	unsigned page_block_size = page_ptr->header.block_size;
+	
+
+	printf("%u %u\n", sizes[i], page_block_size);
+	if(sizes[i] > page_block_size) exit(1);
     }
 
-	for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
-		wffree(mem[i]);
-	}
+    for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
+	    wffree(mem[i]);
+    }
 
-	LOG_EPILOG();
-	return NULL;
+    LOG_EPILOG();
+    return NULL;
 }
 
 void test_wfmalloc() {
-    LOG_PROLOG();
+	LOG_PROLOG();
 
-    const int COUNT_THREADS = 10;
+	const int COUNT_THREADS = 1;
 
     wfinit(COUNT_THREADS);
     wfstats();
