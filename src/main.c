@@ -317,11 +317,14 @@ void* test_worker_wfmalloc(void* data) {
     	sizes[i] = (rand() % 100)+1;
     	mem[i] = wfmalloc(sizes[i], thread_id);
 
-    	/*mem_block_header_t *block_header = (mem_block_header_t*)((char*)mem[i] - sizeof(mem_block_header_t));
-    	page_t* page_ptr = (page_t*)((char*)block_header - block_header->byte_offset);
+		unsigned page_size =
+				((page_t*) (((uintptr_t) mem[i]) & PAGE_MASK))->header.block_size;
 
-    	LOG_INFO("Requested - %d, Returned = %d", sizes[i], page_ptr->header.block_size);*/
-    }
+		if (sizes[i] > page_size) {
+			LOG_INFO("Requested - %d, Returned = %d", sizes[i], page_size);
+			assert(sizes[i] <= page_size);
+		}
+	}
 
 	for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
 		test_bytes(mem[i], n_bytes[i]);
@@ -332,11 +335,8 @@ void* test_worker_wfmalloc(void* data) {
 	return NULL;
 }
 
-void test_wfmalloc() {
+void test_wfmalloc(int COUNT_THREADS) {
     LOG_PROLOG();
-
-    //const int COUNT_THREADS = 10;
-    const int COUNT_THREADS = 1;
 
     wfinit(COUNT_THREADS);
 
@@ -510,23 +510,22 @@ void test_larson(int allocatorNo, int nThreads,  int numOfBlocks, int minSize, i
 }
 
 int main() {
-    //LOG_INIT_CONSOLE();
-    //LOG_INIT_FILE();
+    LOG_INIT_CONSOLE();
+    LOG_INIT_FILE();
     //test_page();
     //test_wf_queue();
     //test_wf_dequeue();
     //test_local_pool();
     //test_pools_single_thread();
     //test_pools_multi_thread();
-    printf("WFMalloc test\n");
-    test_wfmalloc();
-    printf("Larson test 1\n");
-    test_larson(1, 1, 10000, 4, 8, 5);
-    printf("\nLarson test 2\n");
-    test_larson(1, 4, 1000, 4, 8, 5);
+    test_wfmalloc(1);
+    test_wfmalloc(10);
+    test_wfmalloc(100);
+    //test_larson(1, 1, 10000, 4, 8, 5);
+    //test_larson(1, 4, 1000, 4, 8, 5);
     //printf("Wfstats\n");
     //wfstats();
 
-    //LOG_CLOSE();
+    LOG_CLOSE();
     return 0;
 }

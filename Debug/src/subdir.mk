@@ -30,9 +30,6 @@ C_DEPS += \
 ./src/shared_pool.d \
 ./src/wfmalloc.d 
 
-CFLAGS = -O3 -DNDEBUG
-
-CFLAGS_DBG = -g -O1
 
 # Each subdirectory must supply rules for building sources it contributes
 src/%.o: ../src/%.c
