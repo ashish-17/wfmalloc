@@ -30,15 +30,12 @@ C_DEPS += \
 ./src/shared_pool.d \
 ./src/wfmalloc.d 
 
-CFLAGS = -O3 -DNDEBUG
-
-CFLAGS_DBG = -g -O1
 
 # Each subdirectory must supply rules for building sources it contributes
 src/%.o: ../src/%.c
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C Compiler'
-	gcc -DLOGGING_LEVEL=LOG_LEVEL_DEBUG -I/lib/modules/3.13.0-74-generic/build/include -O0 -g3 -Wall -c -fmessage-length=0 -fPIC -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@)" -o "$@" "$<"
+	gcc -DLOGGING_LEVEL=LOG_LEVEL_NONE -I/lib/modules/3.13.0-74-generic/build/include -O0 -g3 -DNDEBUG -Wall -c -fmessage-length=0 -fPIC -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@)" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 

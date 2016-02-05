@@ -48,9 +48,9 @@ local_pool_t* create_local_pool(int count_threads) {
 			}
 
 			block_size *= 2;
+			thread_data->page_cache[bin] = NULL;
 		}
 
-		thread_data->page_cache = NULL;
 
 		#ifdef LOG_LEVEL_STATS
 			thread_data->count_request_shared_pool = 0;
@@ -137,7 +137,7 @@ void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int
 
 	int mlfq = 0;
 	int count_pages = 0;
-	if (thread_data->page_cache == NULL) {
+	if (thread_data->page_cache[bin_idx] == NULL) {
 		for (mlfq = 0; mlfq < MAX_MLFQ && (ptr_page_node == NULL); ++mlfq) {
 			tmp = (thread_data->bins[bin_idx][mlfq]).next;
 			if (likely(thread_data->count_pages_in_queue[bin_idx][mlfq] > 0)) {
@@ -152,7 +152,7 @@ void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int
 					thread_data->count_pages_in_queue[bin_idx][mlfq] -= 1;
 
 					if (likely(tmp_page->header.min_free_blocks > 1)) {
-						thread_data->page_cache = tmp_page;
+						thread_data->page_cache[bin_idx] = tmp_page;
 					} else {
 						list_add(ptr_page_node, &to_be_updated);
 					}
@@ -180,9 +180,9 @@ void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int
 			}
 		}
 	} else {
-		ptr_page_node = &(thread_data->page_cache->header.node);
-		if (thread_data->page_cache->header.min_free_blocks == 1) {
-			thread_data->page_cache = NULL;
+		ptr_page_node = &(thread_data->page_cache[bin_idx]->header.node);
+		if (thread_data->page_cache[bin_idx]->header.min_free_blocks == 1) {
+			thread_data->page_cache[bin_idx] = NULL;
 			list_add(ptr_page_node, &to_be_updated);
 		}
 	}
@@ -229,7 +229,7 @@ void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int
 #endif
 		*(pool->last_shared_pool_idx + thread_id) = (*(pool->last_shared_pool_idx + thread_id) + 1) % pool->count_processors;
 		ptr_page_node = &(get_page_shared_pool(shared_pool, pool, thread_id, *(pool->last_shared_pool_idx + thread_id), block_size)->header.node);
-		thread_data->page_cache = (page_t*) list_entry(ptr_page_node, page_header_t, node);
+		thread_data->page_cache[bin_idx] = (page_t*) list_entry(ptr_page_node, page_header_t, node);
 
 #ifdef LOG_LEVEL_STATS
 		thread_data->count_request_shared_pool++;
@@ -286,7 +286,7 @@ void local_pool_stats(local_pool_t *pool) {
 	local_thread_data_t* thread_data = NULL;
 	int count_pages = 0;
 	list_t* tmp = NULL;
-	/*for (thread = 0; thread < pool->count_threads; ++thread) {
+	for (thread = 0; thread < pool->count_threads; ++thread) {
 		LOG_DEBUG("\tThread %d", thread);
 		LOG_DEBUG("\t\tLast used shared pool idx %d", *(pool->last_shared_pool_idx + thread));
 		thread_data = (pool->thread_data + thread);
@@ -304,7 +304,7 @@ void local_pool_stats(local_pool_t *pool) {
 				LOG_DEBUG("\t\t\tMLFQ %d has %d pages", mlfq, count_pages);
 			}
 		}
-	}*/
+	}
 
 
 #ifdef LOG_LEVEL_STATS
