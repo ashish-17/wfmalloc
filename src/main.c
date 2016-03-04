@@ -163,19 +163,28 @@ typedef struct test_data_wf_queue {
 	dummy_data_wf_queue_t* dummy_data;
 } test_data_wf_queue_t;
 
+pthread_barrier_t barr;
+
 void* test_func_wf_queue(void* thread_data) {
     LOG_PROLOG();
 
 	test_data_wf_queue_t* data = (test_data_wf_queue_t*)thread_data;
+
 
 	int i = 0;
 	for (i = 0; i < data->count_enque_ops; ++i) {
 		wf_enqueue(data->q, &(data->dummy_data[i].node), data->op_desc, data->thread_id);
 	}
 
+	LOG_DEBUG("Finished Enqueue - %d", data->thread_id);
+	pthread_barrier_wait(&barr);
+	/*LOG_DEBUG("Start Dequeue - %d", data->thread_id);
+
 	for (i = 0; i < data->count_deque_ops; ++i) {
 		wf_dequeue(data->q, data->op_desc, data->thread_id);
 	}
+
+	LOG_DEBUG("Finished Dequeue - %d", data->thread_id);*/
 
 	LOG_EPILOG();
 	return NULL;
@@ -184,9 +193,9 @@ void* test_func_wf_queue(void* thread_data) {
 void test_wf_queue() {
     LOG_PROLOG();
 
-    const int COUNT_THREADS = 400;
-    const int COUNT_ENQUEUE_OPS = 100;
-    const int COUNT_DeQUEUE_OPS = 50;
+    const int COUNT_THREADS = 10;
+    const int COUNT_ENQUEUE_OPS = 10000;
+    const int COUNT_DeQUEUE_OPS = 0;
 
     // Result = 1 + COUNT_THREADS*COUNT_ENQUEUE_OPS - COUNT_THREADS*COUNT_DeQUEUE_OPS
 
@@ -200,6 +209,8 @@ void test_wf_queue() {
     wf_queue_head_t *q = create_wf_queue(&(dummy_data[0].node));
     wf_queue_op_head_t *op_desc = create_queue_op_desc(COUNT_THREADS);
     pthread_t threads[COUNT_THREADS];
+    pthread_barrier_init(&barr, NULL, COUNT_THREADS);
+
     test_data_wf_queue_t thread_data[COUNT_THREADS];
 
     for (i = 0; i < COUNT_THREADS; ++i) {
@@ -485,12 +496,12 @@ int main() {
     LOG_INIT_FILE();
 
     //test_page();
-    //test_wf_queue();
+    test_wf_queue();
     //test_wf_dequeue();
     //test_local_pool();
     //test_pools_single_thread();
     //test_pools_multi_thread();
-    test_wfmalloc();
+    //test_wfmalloc();
     //test_larson(1, 1, 10000, 4, 8, 5);
     //test_larson(0, 4, 1000, 4, 8, 5);
 

@@ -93,6 +93,7 @@ wf_queue_op_head_t* create_queue_op_desc(int num_threads) {
 		(ops + thread)->enqueue = 0;
 		(ops + thread)->pending = 0;
 		(ops + thread)->node = NULL;
+		(ops + thread)->queue = NULL;
 	}
 
 	op_desc->ref_mem.next_reserve = malloc(num_threads * sizeof(stamped_ref_t*));
@@ -144,6 +145,7 @@ void wf_enqueue(wf_queue_head_t *q, wf_queue_node_t* node, wf_queue_op_head_t* o
 	op->node = node;
 	op->pending = 1;
 	op->enqueue = 1;
+	op->queue = q;
 
 	reserve_stamped_ref->ref = op;
 	reserve_stamped_ref->stamp = old_stamped_ref->stamp;
@@ -173,6 +175,7 @@ wf_queue_node_t* wf_dequeue(wf_queue_head_t *q, wf_queue_op_head_t* op_desc, int
 	op->node = NULL;
 	op->pending = 1;
 	op->enqueue = false;
+	op->queue = q;
 
 	reserve_stamped_ref->ref = op;
 	reserve_stamped_ref->stamp = old_stamped_ref->stamp;
@@ -204,9 +207,9 @@ void help(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id, lo
 		op_tmp = STAMPED_REF_TO_REF(*(op_desc->ref_mem.ops + thread), wf_queue_op_desc_t);
 		if ((op_tmp->pending == 1) && (op_tmp->phase <= phase)) {
 			if (unlikely(op_tmp->enqueue == 1)) {
-				help_enq(queue, op_desc, thread_id, thread, phase);
+				help_enq(op_tmp->queue, op_desc, thread_id, thread, phase);
 			} else {
-				help_deq(queue, op_desc, thread_id, thread, phase);
+				help_deq(op_tmp->queue, op_desc, thread_id, thread, phase);
 			}
 		}
 	}
@@ -235,7 +238,6 @@ bool is_pending(wf_queue_op_head_t* op_desc, long phase, int thread_id) {
 	LOG_PROLOG();
 
 	wf_queue_op_desc_t* op_tmp = STAMPED_REF_TO_REF(*(op_desc->ref_mem.ops + thread_id), wf_queue_op_desc_t);
-
 	LOG_EPILOG();
 	return ((op_tmp->pending == 1) && (op_tmp->phase <= phase));
 }
@@ -296,6 +298,7 @@ void help_finish_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 			op_new->pending = false;
 			op_new->enqueue = true;
 			op_new->node = NULL;
+			op_new->queue = queue;
 
 			stamped_ref_t* op_new_stamped_ref = *(op_desc->ref_mem.ops_reserve + thread_id);//(stamped_ref_t*)malloc(sizeof(stamped_ref_t));
 			op_new_stamped_ref->ref = op_new;
@@ -345,6 +348,7 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 						op_new->enqueue = 0;
 						op_new->pending = 0;
 						op_new->node = NULL;
+						op_new->queue = queue;
 						stamped_ref_t* op_new_stamped_ref = *(op_desc->ref_mem.ops_reserve + thread_id);//(stamped_ref_t*)malloc(sizeof(stamped_ref_t));
 						op_new_stamped_ref->ref = op_new;
 						op_new_stamped_ref->stamp = new_stamp;
@@ -375,6 +379,7 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 					op_new->enqueue = 0;
 					op_new->pending = 1;
 					op_new->node = first;
+					op_new->queue = queue;
 					stamped_ref_t* op_new_stamped_ref = *(op_desc->ref_mem.ops_reserve + thread_id);//(stamped_ref_t*)malloc(sizeof(stamped_ref_t));
 					op_new_stamped_ref->ref = op_new;
 					op_new_stamped_ref->stamp = new_stamp;
@@ -420,6 +425,7 @@ void help_finish_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 			op_new->enqueue = 0;
 			op_new->pending = 0;
 			op_new->node = op_old->node;
+			op_new->queue = queue;
 			stamped_ref_t* op_new_stamped_ref = *(op_desc->ref_mem.ops_reserve + thread_id);//(stamped_ref_t*)malloc(sizeof(stamped_ref_t));
 			op_new_stamped_ref->ref = op_new;
 			op_new_stamped_ref->stamp = new_stamp;
@@ -447,7 +453,6 @@ void help_finish_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 
 	LOG_EPILOG();
 }
-
 
 int wf_queue_count_nodes(wf_queue_head_t* head) {
 	LOG_PROLOG();

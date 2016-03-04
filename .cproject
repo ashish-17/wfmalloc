@@ -229,6 +229,7 @@
 	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
 	<storageModule moduleId="refreshScope" versionNumber="2">
+		<configuration configurationName="exe"/>
 		<configuration configurationName="Debug">
 			<resource resourceType="PROJECT" workspacePath="/wfmalloc"/>
 		</configuration>
