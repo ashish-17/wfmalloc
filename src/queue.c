@@ -12,6 +12,7 @@
 #include "includes/atomic.h"
 #include "includes/utils.h"
 #include <pthread.h>
+#include <assert.h>
 
 #define STAMPED_REF_TO_REF(ptr, ref_type) ((ref_type*)((ptr)->ref))
 #define CAS_COND1(old_stamped_ref, expected_stamped_ref, expected_ref, expected_stamp, new_stamped_ref) \
@@ -134,6 +135,8 @@ void wf_enqueue(wf_queue_head_t *q, wf_queue_node_t* node, wf_queue_op_head_t* o
 
 	long phase = max_phase(op_desc) + 1;
 	stamped_ref_t *old_stamped_ref = *(op_desc->ref_mem.ops + thread_id);
+	assert(STAMPED_REF_TO_REF(old_stamped_ref, wf_queue_op_desc_t)->pending == 0);
+
 	stamped_ref_t *reserve_stamped_ref = *(op_desc->ref_mem.ops_reserve + thread_id);//(stamped_ref_t*)malloc(sizeof(stamped_ref_t));
 
 	wf_queue_op_desc_t *op = STAMPED_REF_TO_REF(reserve_stamped_ref, wf_queue_op_desc_t);//*(op_desc->ops_reserve + thread_id);//(wf_queue_op_desc_t*)malloc(sizeof(wf_queue_op_desc_t));
@@ -165,6 +168,8 @@ wf_queue_node_t* wf_dequeue(wf_queue_head_t *q, wf_queue_op_head_t* op_desc, int
 
 	long phase = max_phase(op_desc) + 1;
 	stamped_ref_t *old_stamped_ref = *(op_desc->ref_mem.ops + thread_id);
+	assert(STAMPED_REF_TO_REF(old_stamped_ref, wf_queue_op_desc_t)->pending == 0);
+
 	stamped_ref_t *reserve_stamped_ref = *(op_desc->ref_mem.ops_reserve + thread_id);
 
 	wf_queue_op_desc_t *op = STAMPED_REF_TO_REF(reserve_stamped_ref, wf_queue_op_desc_t);//*(op_desc->ops_reserve + thread_id);
