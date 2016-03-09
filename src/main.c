@@ -167,6 +167,9 @@ typedef struct test_data_wf_queue {
 
 pthread_barrier_t barr;
 
+#define COUNT_THREADS_WF_QUEUE 10
+pthread_t threads_test_wf_queue[COUNT_THREADS_WF_QUEUE];
+
 void* test_func_wf_queue(void* thread_data) {
     LOG_PROLOG();
 
@@ -174,6 +177,8 @@ void* test_func_wf_queue(void* thread_data) {
 
 	int i = 0;
 	for (i = 0; i < data->count_enque_ops; ++i) {
+
+//		check_state(COUNT_THREADS_WF_QUEUE, data->op_desc);
 		wf_enqueue(data->q, &(data->dummy_data[i].node), data->op_desc, data->thread_id);
 	}
 
@@ -191,30 +196,44 @@ void* test_func_wf_queue(void* thread_data) {
 	return NULL;
 }
 
+
+int stop_world_wf_queue(int thread_id) {
+    int i;
+    for (i = 0; i < COUNT_THREADS_WF_QUEUE; i++) {
+	if ( i != thread_id) {
+	    pthread_cancel(threads_test_wf_queue[i]);
+	}
+    }
+    return COUNT_THREADS_WF_QUEUE;
+}
+
+wf_queue_op_head_t *op_desc;
+wf_queue_head_t *q;
+
 void test_wf_queue() {
     LOG_PROLOG();
 
-    const int COUNT_THREADS = 10;
+    stop_world = &stop_world_wf_queue; 
     const int COUNT_ENQUEUE_OPS = 10000;
     const int COUNT_DeQUEUE_OPS = 0;
 
     // Result = 1 + COUNT_THREADS*COUNT_ENQUEUE_OPS - COUNT_THREADS*COUNT_DeQUEUE_OPS
 
-    dummy_data_wf_queue_t dummy_data[COUNT_THREADS*COUNT_ENQUEUE_OPS + 1];
+    dummy_data_wf_queue_t dummy_data[COUNT_THREADS_WF_QUEUE * COUNT_ENQUEUE_OPS + 1];
     int i = 0;
-    for (i = 0; i < (COUNT_THREADS*COUNT_ENQUEUE_OPS + 1); ++i) {
+    for (i = 0; i < (COUNT_THREADS_WF_QUEUE * COUNT_ENQUEUE_OPS + 1); ++i) {
     	dummy_data[i].data = i;
     	init_wf_queue_node(&(dummy_data[i].node));
     }
 
-    wf_queue_head_t *q = create_wf_queue(&(dummy_data[0].node));
-    wf_queue_op_head_t *op_desc = create_queue_op_desc(COUNT_THREADS);
-    pthread_t threads[COUNT_THREADS];
-    pthread_barrier_init(&barr, NULL, COUNT_THREADS);
+    q = create_wf_queue(&(dummy_data[0].node));
+    op_desc = create_queue_op_desc(COUNT_THREADS_WF_QUEUE);
+    //pthread_t threads[COUNT_THREADS];
+    pthread_barrier_init(&barr, NULL, COUNT_THREADS_WF_QUEUE);
 
-    test_data_wf_queue_t thread_data[COUNT_THREADS];
+    test_data_wf_queue_t thread_data[COUNT_THREADS_WF_QUEUE];
 
-    for (i = 0; i < COUNT_THREADS; ++i) {
+    for (i = 0; i < COUNT_THREADS_WF_QUEUE; ++i) {
     	thread_data[i].thread_id = i;
     	thread_data[i].count_enque_ops = COUNT_ENQUEUE_OPS;
     	thread_data[i].count_deque_ops = COUNT_DeQUEUE_OPS;
@@ -223,14 +242,14 @@ void test_wf_queue() {
     	thread_data[i].dummy_data = dummy_data + i*COUNT_ENQUEUE_OPS+1;
 
     	LOG_INFO("Creating thread %d", i);
-    	pthread_create(threads + i, NULL, test_func_wf_queue, thread_data+i);
+    	pthread_create(threads_test_wf_queue + i, NULL, test_func_wf_queue, thread_data+i);
     }
 
-    for (i = 0; i < COUNT_THREADS; ++i) {
-    	pthread_join(threads[i], NULL);
+    for (i = 0; i < COUNT_THREADS_WF_QUEUE; ++i) {
+    	pthread_join(threads_test_wf_queue[i], NULL);
     }
 
-    int verify[COUNT_THREADS*COUNT_ENQUEUE_OPS];
+    int verify[COUNT_THREADS_WF_QUEUE * COUNT_ENQUEUE_OPS];
     memset(verify, 0, sizeof(verify));
 
     wf_queue_node_t *x = q->head->ref;
@@ -249,7 +268,7 @@ void test_wf_queue() {
 
     int count_miss = 0;
     int count_found = 0;
-    for (i = 0; i < COUNT_THREADS*COUNT_ENQUEUE_OPS+1; ++i) {
+    for (i = 0; i < COUNT_THREADS_WF_QUEUE * COUNT_ENQUEUE_OPS+1; ++i) {
 		if (verify[i] == 1) {
 			count_found++;
 		} else {
@@ -509,6 +528,8 @@ void* worker(void *data) {
 	}
 
 	LOG_EPILOG();
+
+	return NULL;
 }
 
 void test_larson(int allocatorNo, int nThreads,  int numOfBlocks, int minSize, int maxSize, unsigned timeSlice) {
