@@ -27,4 +27,5 @@ static const long long TOTAL_INIT_MEMORY = 2147483648/2048; // 2GB
 #define CALC_MLFQ_IDX(empty, max) ((empty) == (max) ? 0 : ((empty) == 0) ? ((MAX_MLFQ) - 1) : ((MAX_MLFQ-1) - (((empty) * (MAX_MLFQ-1)) / (max)) - 1))
 #define MIN_OPS_BEFORE_REMOVAL 4
 
+
 #endif /* INCLUDES_CONFIG_H_ */

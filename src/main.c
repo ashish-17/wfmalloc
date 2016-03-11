@@ -172,13 +172,13 @@ void* test_func_wf_queue(void* thread_data) {
 
 	test_data_wf_queue_t* data = (test_data_wf_queue_t*)thread_data;
 
+	pthread_barrier_wait(&barr);
 	int i = 0;
 	for (i = 0; i < data->count_enque_ops; ++i) {
 		wf_enqueue(data->q, &(data->dummy_data[i].node), data->op_desc, data->thread_id);
 	}
 
 	LOG_DEBUG("Finished Enqueue - %d", data->thread_id);
-	pthread_barrier_wait(&barr);
 	/*LOG_DEBUG("Start Dequeue - %d", data->thread_id);
 
 	for (i = 0; i < data->count_deque_ops; ++i) {
@@ -195,7 +195,7 @@ void test_wf_queue() {
     LOG_PROLOG();
 
     const int COUNT_THREADS = 10;
-    const int COUNT_ENQUEUE_OPS = 10000;
+    const int COUNT_ENQUEUE_OPS = 20000;
     const int COUNT_DeQUEUE_OPS = 0;
 
     // Result = 1 + COUNT_THREADS*COUNT_ENQUEUE_OPS - COUNT_THREADS*COUNT_DeQUEUE_OPS
