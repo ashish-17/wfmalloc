@@ -233,7 +233,7 @@ void test_wf_queue() {
     int verify[COUNT_THREADS*COUNT_ENQUEUE_OPS];
     memset(verify, 0, sizeof(verify));
 
-    wf_queue_node_t *x = q->head->ref;
+    wf_queue_node_t *x = GET_PTR_FROM_TAGGEDPTR(q->head, wf_queue_node_t);
     int total=0;
     while(x!=NULL){
     	dummy_data_wf_queue_t* val = (dummy_data_wf_queue_t*)list_entry(x, dummy_data_wf_queue_t, node);
@@ -244,7 +244,7 @@ void test_wf_queue() {
     	}
 
     	total++;
-    	x=x->next->ref;
+    	x=GET_PTR_FROM_TAGGEDPTR(x->next, wf_queue_node_t);
     }
 
     int count_miss = 0;
@@ -276,7 +276,7 @@ void test_wf_dequeue() {
 		//wf_dequeue(q, op_desc, 0);
 	}
 
-	wf_queue_node_t *x = q->head->ref;
+	/*wf_queue_node_t *x = q->head->ref;
 	i=0;
 	int total = 0;
 	while (x != NULL) {
@@ -285,7 +285,7 @@ void test_wf_dequeue() {
 		total++;
 	}
 
-    LOG_INFO("Total number of items in queue = %d", total);
+    LOG_INFO("Total number of items in queue = %d", total);*/
 
 	LOG_EPILOG();
 }

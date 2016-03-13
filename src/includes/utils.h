@@ -78,19 +78,12 @@ static inline unsigned long upper_power_of_two(unsigned long v)
 
 }
 
+
 #define COUNT_TAG_BITS 16
 #define TOTAL_BITS 64
 
-static inline void* getTaggedPtr(void** ptr, int tag) {
-	return (void*)((long)*ptr | (long)tag << (TOTAL_BITS-COUNT_TAG_BITS));
-}
-
-static inline void *getPtrFromTaggedPtr(void**ptr) {
-	return (void*)((long)*ptr & (long)(~((long)(~0) << (TOTAL_BITS-COUNT_TAG_BITS))));
-}
-
-static inline int getTagFromTaggedPtr(void**ptr) {
-	return (int)(((long)*ptr & (long)((long)(~0) << (TOTAL_BITS-COUNT_TAG_BITS))) >> (TOTAL_BITS-COUNT_TAG_BITS));
-}
+#define GET_TAGGED_PTR(ptr, type, tag) ((type*)((long)(ptr) | ((long)(tag) << (TOTAL_BITS-COUNT_TAG_BITS))))
+#define GET_PTR_FROM_TAGGEDPTR(ptr, type) ((type*)((long)(ptr) & (long)(~((long)(~0) << (TOTAL_BITS-COUNT_TAG_BITS)))))
+#define GET_TAG_FROM_TAGGEDPTR(ptr) ((unsigned int)(((long)(ptr) & (long)((long)(~0) << (TOTAL_BITS-COUNT_TAG_BITS))) >> (TOTAL_BITS-COUNT_TAG_BITS)))
 
 #endif /* INCLUDES_UTILS_H_ */
