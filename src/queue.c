@@ -267,8 +267,8 @@ void help_finish_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 
 			wf_queue_node_t* new_stamped_ref = GET_TAGGED_PTR(GET_PTR_FROM_TAGGEDPTR(next_stamped_ref, wf_queue_node_t), wf_queue_node_t, new_stamp_tail);
 			if (CAS_TAG(queue->tail, tail_stamped_ref, new_stamped_ref)) {
-				LOG_DEBUG("queue->tail = %p, tail_stamped_ref = %p, new_stamped_ref = %p", queue->tail, tail_stamped_ref, new_stamped_ref);
-				LOG_DEBUG("stamp = %u", GET_TAG_FROM_TAGGEDPTR(new_stamped_ref));
+				//LOG_DEBUG("queue->tail = %p, tail_stamped_ref = %p, new_stamped_ref = %p", queue->tail, tail_stamped_ref, new_stamped_ref);
+				//LOG_DEBUG("old stamp = %u, new Stamp 1 = %u, new stamp = %u", old_stamp_tail, new_stamp_tail, GET_TAG_FROM_TAGGEDPTR(new_stamped_ref));
 			}
 		} else {
 			/*LOG_DEBUG("tail_stamped_ref == %p, queue->tail = %p", tail_stamped_ref, queue->tail);

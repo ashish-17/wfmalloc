@@ -84,6 +84,6 @@ static inline unsigned long upper_power_of_two(unsigned long v)
 
 #define GET_TAGGED_PTR(ptr, type, tag) ((type*)((long)(ptr) | ((long)(tag) << (TOTAL_BITS-COUNT_TAG_BITS))))
 #define GET_PTR_FROM_TAGGEDPTR(ptr, type) ((type*)((long)(ptr) & (long)(~((long)(~0) << (TOTAL_BITS-COUNT_TAG_BITS)))))
-#define GET_TAG_FROM_TAGGEDPTR(ptr) ((unsigned int)(((long)(ptr) & (long)((long)(~0) << (TOTAL_BITS-COUNT_TAG_BITS))) >> (TOTAL_BITS-COUNT_TAG_BITS)))
+#define GET_TAG_FROM_TAGGEDPTR(ptr) ((unsigned int)(((unsigned long)(ptr) & (unsigned long)((unsigned long)(~0) << (TOTAL_BITS-COUNT_TAG_BITS))) >> (TOTAL_BITS-COUNT_TAG_BITS)))
 
 #endif /* INCLUDES_UTILS_H_ */
