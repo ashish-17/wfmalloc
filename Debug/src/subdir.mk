@@ -35,7 +35,7 @@ C_DEPS += \
 src/%.o: ../src/%.c
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C Compiler'
-	gcc -DLOGGING_LEVEL=LOG_LEVEL_DEBUG -I/lib/modules/3.13.0-74-generic/build/include -O0 -g3 -Wall -c -fmessage-length=0 -fPIC -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@)" -o "$@" "$<"
+	gcc -DDEBUG --std=gnu99 -DLOGGING_LEVEL=LOG_LEVEL_DEBUG -I/lib/modules/3.13.0-74-generic/build/include -O0 -g3 -Wall -c -fmessage-length=0 -fPIC -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@)" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
