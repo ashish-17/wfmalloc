@@ -2,7 +2,7 @@
 #ifndef __SYNCHRO_ATOMIC_H__
 #define __SYNCHRO_ATOMIC_H__
 
-#define mb()		asm volatile ("sync" : : : "memory")
+/*#define mb()		asm volatile ("sync" : : : "memory")
 #define LOCK_PREFIX	"lock ; "
 
 static inline unsigned long fetch_and_store(volatile unsigned int *address, unsigned int value)
@@ -70,6 +70,6 @@ static inline unsigned int compare_and_swap64(volatile unsigned long long *addre
 static inline unsigned long compare_and_swap_ptr(volatile void *address, void* old_ptr, void* new_ptr)
 {
 	return compare_and_swap64((volatile unsigned long long *)address, (unsigned long)old_ptr, (unsigned long)new_ptr);
-}
+}*/
 
 #endif

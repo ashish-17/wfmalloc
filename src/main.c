@@ -195,7 +195,7 @@ void test_wf_queue() {
     LOG_PROLOG();
 
     const int COUNT_THREADS = 10;
-    const int COUNT_ENQUEUE_OPS = 20000;
+    const int COUNT_ENQUEUE_OPS = 200;
     const int COUNT_DeQUEUE_OPS = 0;
 
     // Result = 1 + COUNT_THREADS*COUNT_ENQUEUE_OPS - COUNT_THREADS*COUNT_DeQUEUE_OPS

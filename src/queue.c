@@ -12,9 +12,10 @@
 #include "includes/atomic.h"
 #include "includes/utils.h"
 #include <pthread.h>
+#include <stdatomic.h>
 #include <assert.h>
 
-#define CAS_TAG(old_stamped_ref, expected_stamped_ref, new_stamped_ref) (compare_and_swap_ptr (&(old_stamped_ref), (expected_stamped_ref), (new_stamped_ref)))
+//#define CAS_TAG(old_stamped_ref, expected_stamped_ref, new_stamped_ref) (compare_and_swap_ptr (&(old_stamped_ref), (expected_stamped_ref), (new_stamped_ref)))
 
 void help(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id, long phase);
 long max_phase(wf_queue_op_head_t* op_desc);
@@ -270,7 +271,7 @@ void help_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 			if (GET_PTR_FROM_TAGGEDPTR(queue->tail, wf_queue_node_t)->next == NULL) {
 				if (is_pending(op_desc, phase, thread_to_help)) {
 					wf_queue_node_t* new_stamped_ref = GET_TAGGED_PTR(new_node, wf_queue_node_t, new_stamp);
-					if (CAS_TAG(GET_PTR_FROM_TAGGEDPTR(queue->tail, wf_queue_node_t)->next, next_stamped_ref, new_stamped_ref)) {
+					if (atomic_compare_exchange_strong(&(GET_PTR_FROM_TAGGEDPTR(queue->tail, wf_queue_node_t)->next), &next_stamped_ref, new_stamped_ref)) {
 #ifdef DEBUG_QUEUE
 						if (debug_queue_data[thread_to_help][debug_queue_op_index[thread_to_help]].stepEnquueThreadId != -1) {
 							assert(debug_queue_data[thread_to_help][debug_queue_op_index[thread_to_help]].stepEnquueThreadId == -1);
@@ -322,7 +323,7 @@ void help_finish_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 			new_op_desc_ref->node = NULL;
 			new_op_desc_ref->queue = queue;
 
-			if (compare_and_swap_ptr((op_desc->ops + enq_tid), old_op_desc_stamped_ref, new_op_desc_stamped_ref)) {
+			if (atomic_compare_exchange_strong((op_desc->ops + enq_tid), &old_op_desc_stamped_ref, new_op_desc_stamped_ref)) {
 				*(op_desc->ops_reserve + thread_id) = old_op_desc_ref;
 				assert(old_op_desc_ref->pending == 1);
 				assert(old_op_desc_ref->node != NULL);
@@ -338,9 +339,7 @@ void help_finish_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 			}
 
 			wf_queue_node_t* new_stamped_ref = GET_TAGGED_PTR(GET_PTR_FROM_TAGGEDPTR(next_stamped_ref, wf_queue_node_t), wf_queue_node_t, new_stamp_tail);
-			if (CAS_TAG(queue->tail, tail_stamped_ref, new_stamped_ref)) {
-				//LOG_DEBUG("queue->tail = %p, tail_stamped_ref = %p, new_stamped_ref = %p", queue->tail, tail_stamped_ref, new_stamped_ref);
-				//LOG_DEBUG("old stamp = %u, new Stamp 1 = %u, new stamp = %u", old_stamp_tail, new_stamp_tail, GET_TAG_FROM_TAGGEDPTR(new_stamped_ref));
+			if (atomic_compare_exchange_strong(&(queue->tail), &tail_stamped_ref, new_stamped_ref)) {
 #ifdef DEBUG_QUEUE
 
 				if (debug_queue_data[enq_tid][debug_queue_op_index[enq_tid]].stepTailUpdateStepThreadId != -1) {
@@ -493,7 +492,6 @@ int wf_queue_count_nodes(wf_queue_head_t* head) {
 
 	int count = 0;
 	wf_queue_node_t* tmp_head = GET_PTR_FROM_TAGGEDPTR(head->head, wf_queue_node_t);
-	wf_queue_node_t* tmp_tail = GET_PTR_FROM_TAGGEDPTR(head->tail, wf_queue_node_t);
 	while (GET_PTR_FROM_TAGGEDPTR(tmp_head->next, wf_queue_node_t) != NULL) {
 		count++;
 		tmp_head = GET_PTR_FROM_TAGGEDPTR(tmp_head->next, wf_queue_node_t);
