@@ -23,19 +23,19 @@ endif
 # Add inputs and outputs from these tool invocations to the build variables 
 
 # All Target
-all: wfmalloc
+all: libwfmalloc.so
 
 # Tool invocations
-wfmalloc: $(OBJS) $(USER_OBJS)
+libwfmalloc.so: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C Linker'
-	gcc  -o "wfmalloc" $(OBJS) $(USER_OBJS) $(LIBS)
+	gcc -shared -o "libwfmalloc.so" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) $(EXECUTABLES)$(OBJS)$(C_DEPS) wfmalloc
+	-$(RM) $(LIBRARIES)$(OBJS)$(C_DEPS) libwfmalloc.so
 	-@echo ' '
 
 .PHONY: all clean dependents

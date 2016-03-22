@@ -362,12 +362,17 @@ void* test_worker_large_allocations(void* data) {
     char* mem[COUNT_MALLOC_OPS];
     int n_bytes[COUNT_MALLOC_OPS];
     for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
-	n_bytes[i] = randomNumber(1, 20000);
-    	//n_bytes[i] = 256;
-	mem[i] = wfmalloc(n_bytes[i], thread_id);
-	
-	write_to_bytes(mem[i], n_bytes[i]);
-    }
+    	sizes[i] = (rand() % 100)+1;
+    	mem[i] = wfmalloc(sizes[i], thread_id);
+
+		unsigned page_size =
+				((page_t*) (((uintptr_t) mem[i]) & PAGE_MASK))->header.block_size;
+
+		if (sizes[i] > page_size) {
+			LOG_INFO("Requested - %d, Returned = %d", sizes[i], page_size);
+			assert(sizes[i] <= page_size);
+		}
+	}
 
 	for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
 		test_bytes(mem[i], n_bytes[i]);
@@ -382,7 +387,6 @@ void test_large_allocations(int COUNT_THREADS) {
     LOG_PROLOG();
 
     wfinit(COUNT_THREADS);
-    //wfstats();
 
     pthread_t threads[COUNT_THREADS];
     int data[COUNT_THREADS];
@@ -397,7 +401,6 @@ void test_large_allocations(int COUNT_THREADS) {
     	pthread_join(threads[i], NULL);
     }
 
-    //wfstats();
 	LOG_EPILOG();
 }
 
@@ -554,8 +557,8 @@ void test_larson(int allocatorNo, int nThreads,  int numOfBlocks, int minSize, i
 }
 
 int main() {
-    //LOG_INIT_CONSOLE();
-    //LOG_INIT_FILE();
+    LOG_INIT_CONSOLE();
+    LOG_INIT_FILE();
     //test_page();
     //test_wf_queue();
     //test_wf_dequeue();
@@ -578,6 +581,6 @@ int main() {
     //printf("Wfstats\n");
     //wfstats();
 
-    //LOG_CLOSE();
+    LOG_CLOSE();
     return 0;
 }

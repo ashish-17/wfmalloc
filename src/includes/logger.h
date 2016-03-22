@@ -9,7 +9,7 @@
 #define LOG_LEVEL_WARN 2 // Include Warnings in the log
 #define LOG_LEVEL_ERROR 3 // Include the error and related description
 #define LOG_LEVEL_DEBUG 4 // Include Debug info in the  logs
-//#define LOG_LEVEL_STATS 5 // Uncomment this line to Compile and include statistics info
+/*#define LOG_LEVEL_STATS 5*/ // Uncomment this line to Compile and include statistics info
 #define LOG_LEVEL_VERBOSE 0xffff // All the logs (Include prolog/epilog and other such logs)
 
 #define LOG_OUTPUT_CONSOLE 0
