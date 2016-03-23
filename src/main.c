@@ -163,6 +163,7 @@ typedef struct test_data_wf_queue {
 	wf_queue_head_t *q;
 	wf_queue_op_head_t *op_desc;
 	dummy_data_wf_queue_t* dummy_data;
+        wf_queue_node_t** queue_data;
 } test_data_wf_queue_t;
 
 pthread_barrier_t barr;
@@ -234,6 +235,10 @@ void test_wf_queue() {
     int verify[COUNT_THREADS*COUNT_ENQUEUE_OPS];
     memset(verify, 0, sizeof(verify));
 
+
+    int final_tail_tag = GET_TAG_FROM_TAGGEDPTR(q->tail);
+    LOG_INFO("final tail stamp = %d", final_tail_tag);
+
     wf_queue_node_t *x = GET_PTR_FROM_TAGGEDPTR(q->head, wf_queue_node_t);
     int total=0;
     while(x!=NULL){
@@ -265,6 +270,110 @@ void test_wf_queue() {
 	LOG_EPILOG();
 }
 
+
+void* test_func_wf_dequeue(void* thread_data) {
+    LOG_PROLOG();
+    
+    test_data_wf_queue_t* data = (test_data_wf_queue_t*)thread_data;
+    pthread_barrier_wait(&barr);
+    
+    int i = 0;
+    while(1) {
+        data->queue_data[i] = wf_dequeue(data->q, data->op_desc, data->thread_id);
+        if (data->queue_data[i] == NULL) {
+	    return NULL;
+	}
+	i++;
+    }
+    return NULL;
+}
+
+
+void test_wf_dequeue() {
+    LOG_PROLOG();
+
+    const int COUNT_THREADS = 1;
+    const int COUNT_OPS = 10000;
+
+    dummy_data_wf_queue_t *dummy_data = (dummy_data_wf_queue_t*) malloc(sizeof(dummy_data_wf_queue_t) * (COUNT_THREADS * COUNT_OPS + 1));
+
+    int i = 0;
+    for (i = 0; i < (COUNT_THREADS * COUNT_OPS + 1); ++i) {
+	    dummy_data[i].data = i;
+	    init_wf_queue_node(&(dummy_data[i].node));
+    }
+
+    wf_queue_head_t *q = create_wf_queue(&(dummy_data[0].node));
+    wf_queue_op_head_t *op_desc = create_queue_op_desc(COUNT_THREADS);
+    pthread_t threads[COUNT_THREADS];
+    
+    for (i = 1; i < COUNT_THREADS * COUNT_OPS + 1 ; i++) {
+        wf_enqueue(q, &(dummy_data[i].node), op_desc, 0);
+    }
+    
+    LOG_INFO("finished enqueue");
+
+    int final_tail_tag = GET_TAG_FROM_TAGGEDPTR(q->tail);
+    LOG_INFO("final tail stamp = %d", final_tail_tag);
+
+    pthread_barrier_init(&barr, NULL, COUNT_THREADS);
+    test_data_wf_queue_t thread_data[COUNT_THREADS];
+    for ( i = 0; i < COUNT_THREADS; i++) {
+        thread_data[i].thread_id = i;
+	thread_data[i].q = q;
+	thread_data[i].op_desc = op_desc;
+    	thread_data[i].queue_data = (wf_queue_node_t**) malloc(sizeof(wf_queue_node_t*) * (COUNT_THREADS * COUNT_OPS + 1));
+	LOG_INFO("Creating thread %d", i);
+        pthread_create(threads + i, NULL, test_func_wf_dequeue, thread_data+i);
+    }
+
+    for (i = 0; i < COUNT_THREADS; ++i) {
+	pthread_join(threads[i], NULL);
+    }
+
+    LOG_INFO("*****Veryfying*****");
+
+    wf_queue_node_t* x;
+    int j = 0;
+    int total = 0;
+    int verify[COUNT_THREADS * COUNT_OPS];
+    memset(verify, 0, sizeof(verify));
+
+    for(i = 0; i < COUNT_THREADS; i++) {
+        j = 0;
+	while ((x = thread_data[i].queue_data[j]) != NULL) {
+	    x = GET_PTR_FROM_TAGGEDPTR(x, wf_queue_node_t);
+	    dummy_data_wf_queue_t* val = (dummy_data_wf_queue_t*)list_entry(x, dummy_data_wf_queue_t, node);
+	    if (verify[val->data] == 1) {
+	    	LOG_WARN("Duplicate = %d", val->data);
+	    } else {
+		verify[val->data] = 1;
+	    }
+	    total++; 
+	    j++; 
+	}
+	LOG_INFO("thread %d dequeued %d items", i, j);
+    }
+
+    int count_miss = 0;
+    int count_found = 0;
+    for (i = 0; i < COUNT_THREADS * COUNT_OPS; ++i) {
+	    if (verify[i] == 1) {
+		    count_found++;
+	    } else {
+		    LOG_WARN("Missed Item = %d", i);
+		    count_miss++;
+	    }
+    }
+
+    LOG_INFO("Number of missed items = %d", count_miss);
+    LOG_INFO("Number of duplicates = %d", total - count_found);
+    LOG_INFO("Total number of items dequeued = %d", total);
+
+    LOG_EPILOG();
+}
+
+/*
 void test_wf_dequeue() {
     LOG_PROLOG();
 
@@ -277,7 +386,7 @@ void test_wf_dequeue() {
 		//wf_dequeue(q, op_desc, 0);
 	}
 
-	/*wf_queue_node_t *x = q->head->ref;
+	wf_queue_node_t *x = q->head->ref;
 	i=0;
 	int total = 0;
 	while (x != NULL) {
@@ -286,10 +395,10 @@ void test_wf_dequeue() {
 		total++;
 	}
 
-    LOG_INFO("Total number of items in queue = %d", total);*/
+    LOG_INFO("Total number of items in queue = %d", total);
 
 	LOG_EPILOG();
-}
+}*/
 
 void* test_worker_wfmalloc(void* data) {
     LOG_PROLOG();
@@ -575,8 +684,8 @@ int main() {
     LOG_INIT_FILE();
 
     //test_page();
-    test_wf_queue();
-    //test_wf_dequeue();
+    //test_wf_queue();
+    test_wf_dequeue();
     //test_local_pool();
     //test_pools_single_thread();
     //test_pools_multi_thread();
