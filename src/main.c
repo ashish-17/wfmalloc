@@ -292,8 +292,8 @@ void* test_func_wf_dequeue(void* thread_data) {
 void test_wf_dequeue() {
     LOG_PROLOG();
 
-    const int COUNT_THREADS = 1;
-    const int COUNT_OPS = 10000;
+    const int COUNT_THREADS = 10;
+    const int COUNT_OPS = 100;
 
     dummy_data_wf_queue_t *dummy_data = (dummy_data_wf_queue_t*) malloc(sizeof(dummy_data_wf_queue_t) * (COUNT_THREADS * COUNT_OPS + 1));
 
@@ -337,17 +337,21 @@ void test_wf_dequeue() {
     int j = 0;
     int total = 0;
     int verify[COUNT_THREADS * COUNT_OPS];
-    memset(verify, 0, sizeof(verify));
+    //memset(verify, 0, sizeof(verify));
+
+    for(i = 0; i < COUNT_THREADS * COUNT_OPS; i++) {
+        verify[i] = -1;
+    }
 
     for(i = 0; i < COUNT_THREADS; i++) {
         j = 0;
 	while ((x = thread_data[i].queue_data[j]) != NULL) {
 	    x = GET_PTR_FROM_TAGGEDPTR(x, wf_queue_node_t);
 	    dummy_data_wf_queue_t* val = (dummy_data_wf_queue_t*)list_entry(x, dummy_data_wf_queue_t, node);
-	    if (verify[val->data] == 1) {
-	    	LOG_WARN("Duplicate = %d", val->data);
+	    if (verify[val->data] != -1) {
+	    	LOG_WARN("Duplicate = %d by threads %d, %d", val->data, verify[val->data], i);
 	    } else {
-		verify[val->data] = 1;
+		verify[val->data] = i;
 	    }
 	    total++; 
 	    j++; 
@@ -358,7 +362,7 @@ void test_wf_dequeue() {
     int count_miss = 0;
     int count_found = 0;
     for (i = 0; i < COUNT_THREADS * COUNT_OPS; ++i) {
-	    if (verify[i] == 1) {
+	    if (verify[i] != -1) {
 		    count_found++;
 	    } else {
 		    LOG_WARN("Missed Item = %d", i);
