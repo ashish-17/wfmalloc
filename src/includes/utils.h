@@ -79,11 +79,24 @@ static inline unsigned long upper_power_of_two(unsigned long v)
 }
 
 
-#define COUNT_TAG_BITS 16
 #define TOTAL_BITS 64
+#define COUNT_TAG_BITS 16
+#define PTR_BITS (TOTAL_BITS - COUNT_TAG_BITS)
 
-#define GET_TAGGED_PTR(ptr, type, tag) ((type*)((long)(ptr) | ((long)(tag) << (TOTAL_BITS-COUNT_TAG_BITS))))
+#if 1
+#define GET_TAGGED_PTR(ptr, type, tag) ((type*)(((long)(ptr)) | ((long)(tag) << (TOTAL_BITS-COUNT_TAG_BITS))))
 #define GET_PTR_FROM_TAGGEDPTR(ptr, type) ((type*)((long)(ptr) & (long)(~((long)(~0) << (TOTAL_BITS-COUNT_TAG_BITS)))))
 #define GET_TAG_FROM_TAGGEDPTR(ptr) ((unsigned int)(((unsigned long)(ptr) & (unsigned long)((unsigned long)(~0) << (TOTAL_BITS-COUNT_TAG_BITS))) >> (TOTAL_BITS-COUNT_TAG_BITS)))
+
+#else
+
+#define TAGGEDPTR_PTR_MASK (~(((uintptr_t)~0) << (uintptr_t)PTR_BITS))
+#define TAGGEDPTR_TAG_MASK
+
+#define aGET_TAGGED_PTR(ptr, type, tag) ((type*)(((uintptr_t)ptr) | (((uintptr_t)tag) << (uintptr_t)(PTR_BITS))))
+#define aGET_PTR_FROM_TAGGEDPTR(ptr, type) ((type*)(((uintptr_t)ptr) & (uintptr_t)TAGGEDPTR_PTR_MASK))
+#define aGET_TAG_FROM_TAGGEDPTR(ptr) ((unsigned int)(((uintptr_t)(ptr) >> (uintptr_t)PTR_BITS)))
+
+#endif
 
 #endif /* INCLUDES_UTILS_H_ */
