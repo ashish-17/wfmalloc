@@ -9,13 +9,20 @@
 #define INCLUDES_QUEUE_H_
 
 #include <stdint.h>
-
+#ifdef DEBUG
+#include <pthread.h>
+#endif
 struct wf_queue_node;
 
 typedef struct wf_queue_node {
 	struct wf_queue_node* next;
 	int enq_tid;
 	int deq_tid; // use CAS to update it
+#ifdef DEBUG
+	int index;
+	int thread_dequeued;
+	pthread_mutex_t lock;
+#endif
 } wf_queue_node_t;
 
 typedef struct wf_queue_head {
@@ -27,6 +34,9 @@ typedef struct wf_queue_head {
  * One for each thread to sync operations among threads.
  */
 typedef struct wf_queues_op_desc {
+#ifdef DEBUG
+	pthread_mutex_t op_desc_lock;
+#endif
 	long phase;
 	uint8_t pending;
 	uint8_t enqueue;

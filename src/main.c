@@ -293,7 +293,7 @@ void test_wf_dequeue() {
     LOG_PROLOG();
 
     const int COUNT_THREADS = 10;
-    const int COUNT_OPS = 100;
+    const int COUNT_OPS = 10000;
 
     dummy_data_wf_queue_t *dummy_data = (dummy_data_wf_queue_t*) malloc(sizeof(dummy_data_wf_queue_t) * (COUNT_THREADS * COUNT_OPS + 1));
 
@@ -301,6 +301,7 @@ void test_wf_dequeue() {
     for (i = 0; i < (COUNT_THREADS * COUNT_OPS + 1); ++i) {
 	    dummy_data[i].data = i;
 	    init_wf_queue_node(&(dummy_data[i].node));
+	    dummy_data[i].node.index = i;
     }
 
     wf_queue_head_t *q = create_wf_queue(&(dummy_data[0].node));
@@ -310,11 +311,13 @@ void test_wf_dequeue() {
     for (i = 1; i < COUNT_THREADS * COUNT_OPS + 1 ; i++) {
         wf_enqueue(q, &(dummy_data[i].node), op_desc, 0);
     }
-    
+// setting the stamp of 0th thread to be 0
+#ifdef DEBUG
+	op_desc->ops[0] = GET_TAGGED_PTR(GET_PTR_FROM_TAGGEDPTR(op_desc->ops[0], wf_queue_op_desc_t), wf_queue_op_desc_t, 0);
+#endif
+
     LOG_INFO("finished enqueue");
 
-    int final_tail_tag = GET_TAG_FROM_TAGGEDPTR(q->tail);
-    LOG_INFO("final tail stamp = %d", final_tail_tag);
 
     pthread_barrier_init(&barr, NULL, COUNT_THREADS);
     test_data_wf_queue_t thread_data[COUNT_THREADS];
@@ -333,6 +336,14 @@ void test_wf_dequeue() {
 
     LOG_INFO("*****Veryfying*****");
 
+    if ((q->head != q->tail) || (GET_PTR_FROM_TAGGEDPTR(q->head, wf_queue_node_t)->next != NULL)) {
+        LOG_DEBUG("queue not empty");
+    }
+
+    int final_tail_tag = GET_TAG_FROM_TAGGEDPTR(q->tail);
+    LOG_INFO("final tail stamp = %d, final tail = %p", final_tail_tag, q->tail);
+    int final_head_tag = GET_TAG_FROM_TAGGEDPTR(q->head);
+    LOG_INFO("final head stamp = %d, final head = %p", final_head_tag, q->head);
     wf_queue_node_t* x;
     int j = 0;
     int total = 0;
@@ -343,20 +354,22 @@ void test_wf_dequeue() {
         verify[i] = -1;
     }
 
+    int dups = 0;
     for(i = 0; i < COUNT_THREADS; i++) {
         j = 0;
 	while ((x = thread_data[i].queue_data[j]) != NULL) {
 	    x = GET_PTR_FROM_TAGGEDPTR(x, wf_queue_node_t);
 	    dummy_data_wf_queue_t* val = (dummy_data_wf_queue_t*)list_entry(x, dummy_data_wf_queue_t, node);
 	    if (verify[val->data] != -1) {
-	    	LOG_WARN("Duplicate = %d by threads %d, %d", val->data, verify[val->data], i);
+		dups++;
+	    	//LOG_WARN("Duplicate = %d by threads %d, %d. deq_tid = %d", x->index, verify[val->data], i, x->deq_tid);
 	    } else {
 		verify[val->data] = i;
 	    }
 	    total++; 
 	    j++; 
 	}
-	LOG_INFO("thread %d dequeued %d items", i, j);
+//	LOG_INFO("thread %d dequeued %d items", i, j);
     }
 
     int count_miss = 0;
@@ -365,13 +378,13 @@ void test_wf_dequeue() {
 	    if (verify[i] != -1) {
 		    count_found++;
 	    } else {
-		    LOG_WARN("Missed Item = %d", i);
+//		    LOG_WARN("Missed Item = %d", i);
 		    count_miss++;
 	    }
     }
 
     LOG_INFO("Number of missed items = %d", count_miss);
-    LOG_INFO("Number of duplicates = %d", total - count_found);
+    LOG_INFO("Number of duplicates = %d, %d", total - count_found, dups);
     LOG_INFO("Total number of items dequeued = %d", total);
 
     LOG_EPILOG();
@@ -682,6 +695,60 @@ void test_larson(int allocatorNo, int nThreads,  int numOfBlocks, int minSize, i
 
 	LOG_EPILOG();
 }
+
+uintptr_t rand64() {
+  uintptr_t v = 0;
+  for(unsigned i = 0; i < 8; i++) {
+    v <<= 8;
+    v ^= rand() & 0xff;
+  }
+  return v;
+}
+
+#if 0
+void test_tagptr_ops() {
+    for(unsigned i = 0; i < 10000000000; i++) {
+	//void* rp = (void*)(rand() ^ ((((uintptr_t)rand() & 0xff) << 32)));
+	//void* rp = (void*) (rand64() & 0xffffffffffff);
+	void* rp = (void*) rand64();
+	//unsigned rt = rand() % (1 << 16);
+	unsigned rt = rand();
+	void* tp0 = GET_TAGGED_PTR(rp, void, rt);
+	void* tp1 = aGET_TAGGED_PTR(rp, void, rt);
+	//printf("%p %u\n", rp, rt);
+	if(tp0 != tp1) {
+	    printf("Error 0 %p %p, %p %u\n", tp0, tp1, rp, rt);
+	}
+	void* p0 = GET_PTR_FROM_TAGGEDPTR(tp0, void);
+	if(rp <= 0xffffffffffff && p0 != rp) {
+	    printf("Error 1 %p %p\n", p0, rp);
+	}
+	void* p1 = aGET_PTR_FROM_TAGGEDPTR(tp1, void);
+	if(rp <= 0xffffffffffff && p1 != rp) {
+    	    printf("Error 2 %p %p\n", p1, rp);
+	}
+	if(p0 != p1) {
+	    printf("P ERROR %p %p %p", rp, p0, p1);
+	}
+	unsigned t0 = GET_TAG_FROM_TAGGEDPTR(tp0);
+	/*
+	if(rt <= 0xffff && t0 != rt) {
+	    printf("Error 3 %u %u\n", t0, rt);
+	}
+	*/
+	unsigned t1 = aGET_TAG_FROM_TAGGEDPTR(tp1);
+	/*
+	if(rt <= 0xffff && t1 != rt) {
+	    printf("Error 4 %u %u\n", t1, rt);
+	}
+	*/
+	if(t0 != t1) {
+	    printf("T ERROR %u %u %u\n", rt, t0, t1);
+	}
+    }
+    exit(0);
+}
+#endif
 
 int main() {
     LOG_INIT_CONSOLE();

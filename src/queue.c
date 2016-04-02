@@ -48,6 +48,15 @@ int* debug_queue_op_index;
 debug_data_t** debug_queue_data;
 #endif
 
+#ifdef DEBUG
+#define COUNT_TEST_THREADS 10
+uint16_t stamp_count[COUNT_TEST_THREADS];
+pthread_mutex_t stamp_lock[COUNT_TEST_THREADS];
+#endif
+
+//#define USE_STAMP_COUNT
+#define USE_MALLOC
+
 wf_queue_head_t* create_wf_queue(wf_queue_node_t* sentinel) {
 	LOG_PROLOG();
 
@@ -55,6 +64,12 @@ wf_queue_head_t* create_wf_queue(wf_queue_node_t* sentinel) {
 	queue->head = GET_TAGGED_PTR(sentinel, wf_queue_node_t, 0);
 	queue->tail = queue->head;
 
+#ifdef DEBUG
+	for (int i = 0; i < COUNT_TEST_THREADS; i++) {
+	    stamp_count[i] = 0;
+	    pthread_mutex_init(&stamp_lock[i], NULL);
+	}
+#endif
 #ifdef DEBUG_QUEUE
 	debug_queue_op_index = (int*) malloc(sizeof(int) * COUNT_TEST_THREADS);
 	debug_queue_data = (debug_data_t**) malloc(sizeof(debug_data_t*) * COUNT_TEST_THREADS);
@@ -98,7 +113,11 @@ void init_wf_queue_node(wf_queue_node_t* node) {
 	node->next = NULL;
 	node->enq_tid = -1;
 	node->deq_tid = -1;
-
+#ifdef DEBUG
+	node->index = -1;
+	node->thread_dequeued = -1;
+	pthread_mutex_init(&node->lock, NULL);
+#endif
 	LOG_EPILOG();
 }
 
@@ -132,12 +151,17 @@ wf_queue_op_head_t* create_queue_op_desc(int num_threads) {
 		(ops + thread)->pending = 0;
 		(ops + thread)->node = NULL;
 		(ops + thread)->queue = NULL;
-
+#ifdef DEBUG 
+		pthread_mutex_init(&((ops + thread)->op_desc_lock), NULL);
+#endif
 		(ops_reserve + thread)->phase = -1;
 		(ops_reserve + thread)->enqueue = 0;
 		(ops_reserve + thread)->pending = 0;
 		(ops_reserve + thread)->node = NULL;
 		(ops_reserve + thread)->queue = NULL;
+#ifdef DEBUG 
+		pthread_mutex_init(&((ops_reserve + thread)->op_desc_lock), NULL);
+#endif
 	}
 
 	LOG_EPILOG();
@@ -193,15 +217,49 @@ wf_queue_node_t* wf_dequeue(wf_queue_head_t *q, wf_queue_op_head_t* op_desc, int
 	new_op_desc_ref->enqueue = 0;
 	new_op_desc_ref->queue = q;
 
-	unsigned int new_stamp = GET_TAG_FROM_TAGGEDPTR(*(op_desc->ops + thread_id)) + 1;
+	uint16_t new_stamp = GET_TAG_FROM_TAGGEDPTR(*(op_desc->ops + thread_id)) + 1;
+#ifdef DEBUG
+	pthread_mutex_lock(&stamp_lock[thread_id]);
+#endif
 
+	#ifdef USE_STAMP_COUNT
+	*(op_desc->ops + thread_id) = GET_TAGGED_PTR(new_op_desc_ref, wf_queue_op_desc_t, stamp_count[thread_id] + 1);
+	#else
 	*(op_desc->ops + thread_id) = GET_TAGGED_PTR(new_op_desc_ref, wf_queue_op_desc_t, new_stamp);
+	#endif
+
+#ifdef DEBUG
+	uint16_t new_tag;
+	if ((stamp_count[thread_id] + 1) % (1 << 16) != GET_TAG_FROM_TAGGEDPTR(*(op_desc->ops + thread_id))) {
+	    new_tag = GET_TAG_FROM_TAGGEDPTR(*(op_desc->ops + thread_id));
+	    if(new_tag >= (1 << 16)) {
+		LOG_ERROR("Error: OOB Tag %u", new_tag);
+	    }
+	    LOG_DEBUG("old_stamp = %u, current_stamp = %u, stamp_count = %u", new_stamp % (1 << 16), new_tag, (unsigned)stamp_count[thread_id]); 
+	    //assert(stamp_count[thread_id] + 1 == GET_TAG_FROM_TAGGEDPTR(*(op_desc->ops + thread_id)));
+	}
+	//new_tag = GET_TAG_FROM_TAGGEDPTR(*(op_desc->ops + thread_id));
+	//LOG_DEBUG("old_stamp = %u, current_stamp = %u, stamp_count = %u", new_stamp, new_tag, (unsigned)stamp_count[thread_id]);
+	stamp_count[thread_id]++;
+	pthread_mutex_unlock(&stamp_lock[thread_id]);
+#endif	
 	*(op_desc->ops_reserve + thread_id) = old_op_desc_ref;
 
 	help(q, op_desc, thread_id, phase);
 	help_finish_enq(q, op_desc, thread_id);
 
+	// TODO: did we dequeue the last node as well?
+	// Paper returns node's next ptr. We are returning node itself
 	node = GET_PTR_FROM_TAGGEDPTR(*(op_desc->ops + thread_id), wf_queue_op_desc_t)->node;
+#ifdef DEBUG
+	int current_stamp = GET_TAG_FROM_TAGGEDPTR(*(op_desc->ops + thread_id));
+	if(node) {
+	    if (node->deq_tid != thread_id) {
+		//LOG_DEBUG("node->deq_tid = %d, thread_id = %d, node_index = %d", node->deq_tid , thread_id, node->index);
+	    }
+	    //assert(node->deq_tid == thread_id);
+	}
+#endif 
 	/*if (unlikely(node == NULL)) {
 		LOG_WARN("Dequeued node is NULL");
 	}*/
@@ -265,8 +323,8 @@ void help_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 		wf_queue_node_t *next_stamped_ref = GET_PTR_FROM_TAGGEDPTR(last_stamped_ref, wf_queue_node_t)->next;
 		wf_queue_node_t *new_node = GET_PTR_FROM_TAGGEDPTR(*(op_desc->ops + thread_to_help), wf_queue_op_desc_t)->node;
 
-		uint32_t old_stamp = GET_TAG_FROM_TAGGEDPTR(next_stamped_ref);
-		uint32_t new_stamp = (old_stamp + 1);
+		uint16_t old_stamp = GET_TAG_FROM_TAGGEDPTR(next_stamped_ref);
+		uint16_t new_stamp = (old_stamp + 1);
 		if (last_stamped_ref == queue->tail) {
 			if (next_stamped_ref == NULL) {
 				if (is_pending(op_desc, phase, thread_to_help)) {
@@ -300,16 +358,16 @@ void help_finish_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 	wf_queue_node_t* tail_ref = GET_PTR_FROM_TAGGEDPTR(tail_stamped_ref, wf_queue_node_t);
 
 	wf_queue_node_t *next_stamped_ref = tail_ref->next;
-	uint32_t old_stamp_tail = GET_TAG_FROM_TAGGEDPTR(tail_stamped_ref);
-	uint32_t new_stamp_tail = old_stamp_tail + 1;
+	uint16_t old_stamp_tail = GET_TAG_FROM_TAGGEDPTR(tail_stamped_ref);
+	uint16_t new_stamp_tail = old_stamp_tail + 1;
 
 	if (GET_PTR_FROM_TAGGEDPTR(next_stamped_ref, wf_queue_node_t) != NULL) {
 		int enq_tid = GET_PTR_FROM_TAGGEDPTR(next_stamped_ref, wf_queue_node_t)->enq_tid;
 
 		wf_queue_op_desc_t* old_op_desc_stamped_ref = *(op_desc->ops + enq_tid);
 		wf_queue_op_desc_t* old_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(old_op_desc_stamped_ref, wf_queue_op_desc_t);
-		uint32_t old_stamp = GET_TAG_FROM_TAGGEDPTR(old_op_desc_stamped_ref);
-		uint32_t new_stamp =  old_stamp + 1;
+		uint16_t old_stamp = GET_TAG_FROM_TAGGEDPTR(old_op_desc_stamped_ref);
+		uint16_t new_stamp =  old_stamp + 1;
 
 		if ((tail_stamped_ref == queue->tail) &&
 			(GET_PTR_FROM_TAGGEDPTR(old_op_desc_ref->node, wf_queue_node_t) == GET_PTR_FROM_TAGGEDPTR(next_stamped_ref, wf_queue_node_t))) {
@@ -363,7 +421,9 @@ void help_finish_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 
 	LOG_EPILOG();
 }
-
+#ifdef DEBUG
+int max_head;
+#endif
 void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id, int thread_to_help, long phase) {
 	LOG_PROLOG();
 
@@ -381,13 +441,25 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 				if (next == NULL) { // queue is empty
 					wf_queue_op_desc_t* old_op_desc_stamped_ref = *(op_desc->ops + thread_to_help);
 					wf_queue_op_desc_t* old_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(old_op_desc_stamped_ref, wf_queue_op_desc_t);
-					uint32_t old_stamp = GET_TAG_FROM_TAGGEDPTR(old_op_desc_stamped_ref);
-					uint32_t new_stamp =  old_stamp + 1;
+					uint16_t old_stamp = GET_TAG_FROM_TAGGEDPTR(old_op_desc_stamped_ref);
+					uint16_t new_stamp =  old_stamp + 1;
 
 					if ((last_stamped_ref == queue->tail) && is_pending(op_desc, phase, thread_to_help)) {
 
-					        wf_queue_op_desc_t* new_op_desc_stamped_ref = GET_TAGGED_PTR(*(op_desc->ops_reserve + thread_id), wf_queue_op_desc_t, new_stamp);
-					        wf_queue_op_desc_t* new_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(new_op_desc_stamped_ref, wf_queue_op_desc_t);
+						#ifdef DEBUG
+						pthread_mutex_lock(&stamp_lock[thread_to_help]);
+						#endif
+					        
+						#ifdef USE_STAMP_COUNT
+						wf_queue_op_desc_t* new_op_desc_stamped_ref = GET_TAGGED_PTR(*(op_desc->ops_reserve + thread_id), wf_queue_op_desc_t, stamp_count[thread_to_help] + 1);
+						#elif defined(USE_MALLOC)
+						wf_queue_op_desc_t* new_op_desc_stamped_ref =(wf_queue_op_desc_t*) malloc(sizeof(wf_queue_op_desc_t));//GET_TAGGED_PTR(*(op_desc->ops_reserve + thread_id), wf_queue_op_desc_t, new_stamp);
+						#else
+						wf_queue_op_desc_t* new_op_desc_stamped_ref = GET_TAGGED_PTR(*(op_desc->ops_reserve + thread_id), wf_queue_op_desc_t, new_stamp);
+						#endif
+
+					        
+						wf_queue_op_desc_t* new_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(new_op_desc_stamped_ref, wf_queue_op_desc_t);
 
 					        new_op_desc_ref->phase = old_op_desc_ref->phase;
 					        new_op_desc_ref->pending = false;
@@ -396,18 +468,29 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 					        new_op_desc_ref->queue = queue;
 						if (atomic_compare_exchange_strong((op_desc->ops + thread_to_help), &old_op_desc_stamped_ref, new_op_desc_stamped_ref)) {
 							// TODO: should we append stamped_ref or just ref is ok?
+							#ifdef DEBUG
+							old_op_desc_ref->node = NULL;
+							if ((stamp_count[thread_to_help] + 1) % (1 << 16) != GET_TAG_FROM_TAGGEDPTR(*(op_desc->ops + thread_to_help))) {
+	    						LOG_DEBUG("old_stamp = %d, new_stamp = %d", stamp_count[thread_to_help], GET_TAG_FROM_TAGGEDPTR(*(op_desc->ops + thread_to_help)));
+							}
+							//assert(stamp_count[thread_to_help] + 1 == GET_TAG_FROM_TAGGEDPTR(*(op_desc->ops + thread_to_help)));
+							stamp_count[thread_to_help]++;
+							#endif
 							*(op_desc->ops_reserve + thread_id) = old_op_desc_ref;
 						}
+					#ifdef DEBUG
+						pthread_mutex_unlock(&stamp_lock[thread_to_help]);
+					#endif	
 					}	
-				} else {
-					help_finish_enq(queue, op_desc, thread_id);
+				} else { // some enqueue is in progress
+					help_finish_enq(queue, op_desc, thread_id); // help it first
 				}
 			} else {   // queue is not empty
 
 				wf_queue_op_desc_t* old_op_desc_stamped_ref = *(op_desc->ops + thread_to_help);
 				wf_queue_op_desc_t* old_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(old_op_desc_stamped_ref, wf_queue_op_desc_t);
-                                uint32_t old_stamp = GET_TAG_FROM_TAGGEDPTR(old_op_desc_stamped_ref);
-				uint32_t new_stamp =  old_stamp + 1;
+                                uint16_t old_stamp = GET_TAG_FROM_TAGGEDPTR(old_op_desc_stamped_ref);
+				uint16_t new_stamp =  old_stamp + 1;
 				//wf_queue_node_t* node = old_op_desc_ref->node;
 
 				if (!is_pending(op_desc, phase, thread_to_help)) {
@@ -415,9 +498,19 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 				}
 
 				if (first_stamped_ref == queue->head && GET_PTR_FROM_TAGGEDPTR(old_op_desc_ref->node, wf_queue_node_t) != first) {
+					#ifdef DEBUG
+						pthread_mutex_lock(&stamp_lock[thread_to_help]);
+					#endif
 
+					#ifdef USE_STAMP_COUNT
+					wf_queue_op_desc_t* new_op_desc_stamped_ref = GET_TAGGED_PTR(*(op_desc->ops_reserve + thread_id), wf_queue_op_desc_t, stamp_count[thread_to_help] + 1);
+					#elif defined(USE_MALLOC)
+					wf_queue_op_desc_t* new_op_desc_stamped_ref = (wf_queue_op_desc_t*) malloc(sizeof(wf_queue_op_desc_t));
+					#else
 				        wf_queue_op_desc_t* new_op_desc_stamped_ref = GET_TAGGED_PTR(*(op_desc->ops_reserve + thread_id), wf_queue_op_desc_t, new_stamp);
-				        wf_queue_op_desc_t* new_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(new_op_desc_stamped_ref, wf_queue_op_desc_t);
+					#endif
+
+					wf_queue_op_desc_t* new_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(new_op_desc_stamped_ref, wf_queue_op_desc_t);
 					new_op_desc_ref->phase = old_op_desc_ref->phase;
 					new_op_desc_ref->pending = true;
 					new_op_desc_ref->enqueue = false;
@@ -426,13 +519,36 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 					new_op_desc_ref->node = GET_TAGGED_PTR(first, wf_queue_node_t, 0);
 					new_op_desc_ref->queue = queue;
 					if (atomic_compare_exchange_strong((op_desc->ops + thread_to_help), &old_op_desc_stamped_ref, new_op_desc_stamped_ref)) {
+						
+						#ifdef DEBUG
+						old_op_desc_ref->node = NULL;
+						if ((stamp_count[thread_to_help] + 1) % (1 << 16) != GET_TAG_FROM_TAGGEDPTR(*(op_desc->ops + thread_to_help))) {
+	    						LOG_DEBUG("old_stamp = %d, new_stamp = %d", stamp_count[thread_to_help], GET_TAG_FROM_TAGGEDPTR(*(op_desc->ops + thread_to_help)));
+						}
+					//	assert(stamp_count[thread_to_help] + 1 == GET_TAG_FROM_TAGGEDPTR(*(op_desc->ops + thread_to_help)));
+						stamp_count[thread_to_help]++;
+						pthread_mutex_unlock(&stamp_lock[thread_to_help]);
+						#endif
 						*(op_desc->ops_reserve + thread_id) = old_op_desc_ref;
 					} else {
+					    #ifdef DEBUG
+						pthread_mutex_unlock(&stamp_lock[thread_to_help]);
+					    #endif		
 					    continue;
 					}
 				}
 				int minus_one_value = -1;
-				atomic_compare_exchange_strong(&(first->deq_tid), &minus_one_value, thread_to_help);
+				if (atomic_compare_exchange_strong(&(first->deq_tid), &minus_one_value, thread_to_help)) {
+				#ifdef DEBUG
+				    pthread_mutex_lock(&first->lock);
+				    if(first->thread_dequeued != -1) {
+				        LOG_DEBUG("node %d already dequeued by thread %d", first->index, first->thread_dequeued);
+				    } else {
+					first->thread_dequeued = thread_to_help;
+				    }
+				    pthread_mutex_unlock(&first->lock);
+				#endif
+				}
 				help_finish_deq(queue, op_desc, thread_id);
 			}
 		}
@@ -448,8 +564,8 @@ void help_finish_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 	wf_queue_node_t *first = GET_PTR_FROM_TAGGEDPTR(first_stamped_ref, wf_queue_node_t);
 	wf_queue_node_t *next = GET_PTR_FROM_TAGGEDPTR(next_stamped_ref, wf_queue_node_t);
 
-	int old_stamp_head = GET_TAG_FROM_TAGGEDPTR(first_stamped_ref);
-	int new_stamp_head = old_stamp_head + 1;
+	uint16_t old_stamp_head = GET_TAG_FROM_TAGGEDPTR(first_stamped_ref);
+	uint16_t new_stamp_head = old_stamp_head + 1;
 	
 	int deq_id = first->deq_tid;
 
@@ -460,22 +576,66 @@ void help_finish_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 		uint32_t new_stamp =  old_stamp + 1;
 
 		if ((first_stamped_ref == queue->head) && (next != NULL)) {
-			wf_queue_op_desc_t* new_op_desc_stamped_ref = GET_TAGGED_PTR(*(op_desc->ops_reserve + thread_id), wf_queue_op_desc_t, new_stamp);
-		        wf_queue_op_desc_t* new_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(new_op_desc_stamped_ref, wf_queue_op_desc_t);
+			#ifdef DEBUG
+			pthread_mutex_lock(&stamp_lock[deq_id]);
+			#endif
+			// TODO: seems like the source of missed items
+			
+			#ifdef USE_STAMP_COUNT
+			wf_queue_op_desc_t* new_op_desc_stamped_ref = GET_TAGGED_PTR(*(op_desc->ops_reserve + thread_id), wf_queue_op_desc_t, stamp_count[deq_id] + 1);
+			#elif defined(USE_MALLOC)
+			wf_queue_op_desc_t* new_op_desc_stamped_ref = (wf_queue_op_desc_t*)malloc(sizeof(wf_queue_op_desc_t));
+			#else
+			wf_queue_op_desc_t* new_op_desc_stamped_ref =GET_TAGGED_PTR(*(op_desc->ops_reserve + thread_id), wf_queue_op_desc_t, new_stamp);
+			#endif
+
+		        
+			wf_queue_op_desc_t* new_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(new_op_desc_stamped_ref, wf_queue_op_desc_t);
 			new_op_desc_ref->phase = old_op_desc_ref->phase;
 			new_op_desc_ref->pending = false;
 			new_op_desc_ref->enqueue = false;
 			// TODO: is this correct?; stamp is 0
 			// Q: why is node ptr of a op_desc a staped rerf. not incrementing its stamp anywhere?
 			new_op_desc_ref->node = old_op_desc_ref->node;
+			#ifdef DEBUG
+			int temp_deq_id;
+			if (new_op_desc_ref->node)
+			       	temp_deq_id = GET_PTR_FROM_TAGGEDPTR(new_op_desc_ref->node, wf_queue_node_t)->deq_tid;
+			#endif
 			new_op_desc_ref->queue = queue;
 
 			if (atomic_compare_exchange_strong((op_desc->ops + deq_id), &old_op_desc_stamped_ref, new_op_desc_stamped_ref)) {
 				*(op_desc->ops_reserve + thread_id) = old_op_desc_ref;
+				#ifdef DEBUG
+				if (temp_deq_id != deq_id) {
+				    int ullu = 90;
+				}
+				//assert(deq_id == GET_PTR_FROM_TAGGEDPTR(new_op_desc_ref->node, wf_queue_node_t)->deq_tid);
+				old_op_desc_ref->node = NULL;
+				if ((stamp_count[deq_id] + 1) % (1 << 16) != GET_TAG_FROM_TAGGEDPTR(*(op_desc->ops + deq_id))) {
+	    				LOG_DEBUG("old_stamp = %d, new_stamp = %d", stamp_count[deq_id], GET_TAG_FROM_TAGGEDPTR(*(op_desc->ops + deq_id)));
+				}
+	//			assert(stamp_count[deq_id] + 1 == GET_TAG_FROM_TAGGEDPTR(*(op_desc->ops + deq_id)));
+				stamp_count[deq_id]++;
+				#endif
 			}
-			
+			#ifdef DEBUG
+			pthread_mutex_unlock(&stamp_lock[deq_id]);
+			#endif
 			wf_queue_node_t* new_stamped_ref = GET_TAGGED_PTR(GET_PTR_FROM_TAGGEDPTR(next_stamped_ref, wf_queue_node_t), wf_queue_node_t, new_stamp_head);
-			atomic_compare_exchange_strong(&(queue->head), &first_stamped_ref, new_stamped_ref); 
+			if (atomic_compare_exchange_strong(&(queue->head), &first_stamped_ref, new_stamped_ref)) {
+			#ifdef DEBUG
+			    int new_head_stamp = GET_TAG_FROM_TAGGEDPTR(first_stamped_ref);
+			    if (max_head < new_head_stamp) {
+				    max_head = new_head_stamp;
+			     //       LOG_INFO("head stamp = %d", max_head);
+			    }
+			    if ((GET_TAG_FROM_TAGGEDPTR(first_stamped_ref) + 1) % (1 << 16) != GET_TAG_FROM_TAGGEDPTR(new_stamped_ref)) {
+			        LOG_DEBUG("tags not strictly increasing. Old stamp = %d, new stamp = %d", GET_TAG_FROM_TAGGEDPTR(first_stamped_ref), GET_TAG_FROM_TAGGEDPTR(new_stamped_ref));
+			    }
+			#endif
+			}
+
 		}
 	}
 
