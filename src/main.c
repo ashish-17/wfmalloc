@@ -292,8 +292,8 @@ void* test_func_wf_dequeue(void* thread_data) {
 void test_wf_dequeue() {
     LOG_PROLOG();
 
-    const int COUNT_THREADS = 1;
-    const int COUNT_OPS = 10000;
+    const int COUNT_THREADS = 10;
+    const int COUNT_OPS = 15000;
 
     dummy_data_wf_queue_t *dummy_data = (dummy_data_wf_queue_t*) malloc(sizeof(dummy_data_wf_queue_t) * (COUNT_THREADS * COUNT_OPS + 1));
 
@@ -352,7 +352,7 @@ void test_wf_dequeue() {
 	    total++; 
 	    j++; 
 	}
-	LOG_INFO("thread %d dequeued %d items", i, j);
+	//LOG_INFO("thread %d dequeued %d items", i, j);
     }
 
     int count_miss = 0;

@@ -48,6 +48,8 @@ int* debug_queue_op_index;
 debug_data_t** debug_queue_data;
 #endif
 
+#define USE_MALLOC
+
 wf_queue_head_t* create_wf_queue(wf_queue_node_t* sentinel) {
 	LOG_PROLOG();
 
@@ -185,7 +187,11 @@ wf_queue_node_t* wf_dequeue(wf_queue_head_t *q, wf_queue_op_head_t* op_desc, int
 
 	wf_queue_op_desc_t* old_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(*(op_desc->ops + thread_id), wf_queue_op_desc_t);
 	//assert(old_op_desc_ref->pending == 0);
+	#ifdef USE_MALLOC
+	wf_queue_op_desc_t* new_op_desc_ref = (wf_queue_op_desc_t*) malloc(sizeof(wf_queue_op_desc_t));
+	#else
 	wf_queue_op_desc_t* new_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(*(op_desc->ops_reserve + thread_id), wf_queue_op_desc_t);
+	#endif
 
 	new_op_desc_ref->phase = phase;
 	new_op_desc_ref->node = NULL;
@@ -386,8 +392,12 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 
 					if ((last_stamped_ref == queue->tail) && is_pending(op_desc, phase, thread_to_help)) {
 
+						#ifdef USE_MALLOC
+						wf_queue_op_desc_t* new_op_desc_stamped_ref = (wf_queue_op_desc_t*) malloc(sizeof(wf_queue_op_desc_t));					
+						#else
 					        wf_queue_op_desc_t* new_op_desc_stamped_ref = GET_TAGGED_PTR(*(op_desc->ops_reserve + thread_id), wf_queue_op_desc_t, new_stamp);
-					        wf_queue_op_desc_t* new_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(new_op_desc_stamped_ref, wf_queue_op_desc_t);
+						#endif
+						wf_queue_op_desc_t* new_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(new_op_desc_stamped_ref, wf_queue_op_desc_t);
 
 					        new_op_desc_ref->phase = old_op_desc_ref->phase;
 					        new_op_desc_ref->pending = false;
@@ -416,8 +426,13 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 
 				if (first_stamped_ref == queue->head && GET_PTR_FROM_TAGGEDPTR(old_op_desc_ref->node, wf_queue_node_t) != first) {
 
+					#ifdef USE_MALLOC
+					wf_queue_op_desc_t* new_op_desc_stamped_ref = (wf_queue_op_desc_t*) malloc(sizeof(wf_queue_op_desc_t));					
+					#else
 				        wf_queue_op_desc_t* new_op_desc_stamped_ref = GET_TAGGED_PTR(*(op_desc->ops_reserve + thread_id), wf_queue_op_desc_t, new_stamp);
-				        wf_queue_op_desc_t* new_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(new_op_desc_stamped_ref, wf_queue_op_desc_t);
+					#endif
+				
+					wf_queue_op_desc_t* new_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(new_op_desc_stamped_ref, wf_queue_op_desc_t);
 					new_op_desc_ref->phase = old_op_desc_ref->phase;
 					new_op_desc_ref->pending = true;
 					new_op_desc_ref->enqueue = false;
@@ -460,7 +475,11 @@ void help_finish_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 		uint32_t new_stamp =  old_stamp + 1;
 
 		if ((first_stamped_ref == queue->head) && (next != NULL)) {
+			#ifdef USE_MALLOC
+			wf_queue_op_desc_t* new_op_desc_stamped_ref = (wf_queue_op_desc_t*) malloc(sizeof(wf_queue_op_desc_t));					
+			#else
 			wf_queue_op_desc_t* new_op_desc_stamped_ref = GET_TAGGED_PTR(*(op_desc->ops_reserve + thread_id), wf_queue_op_desc_t, new_stamp);
+			#endif
 		        wf_queue_op_desc_t* new_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(new_op_desc_stamped_ref, wf_queue_op_desc_t);
 			new_op_desc_ref->phase = old_op_desc_ref->phase;
 			new_op_desc_ref->pending = false;
