@@ -49,11 +49,15 @@ debug_data_t** debug_queue_data;
 #endif
 
 //#define USE_MALLOC
-#define GLOBAL_STAMP
+//#define GLOBAL_STAMP
 
 #ifdef GLOBAL_STAMP
 pthread_mutex_t stamp_lock[20];
 uint16_t global_stamp[20];
+#endif
+
+#ifdef DEBUG
+int last_dequeued[20];
 #endif
 
 wf_queue_head_t* create_wf_queue(wf_queue_node_t* sentinel) {
@@ -62,6 +66,12 @@ wf_queue_head_t* create_wf_queue(wf_queue_node_t* sentinel) {
 	wf_queue_head_t* queue = (wf_queue_head_t*)malloc(sizeof(wf_queue_head_t));
 	queue->head = GET_TAGGED_PTR(sentinel, wf_queue_node_t, 0);
 	queue->tail = queue->head;
+
+#ifdef DEBUG
+    for (int i = 0; i < 20; i++) {
+        last_dequeued[i] = -1;
+    }
+#endif
 
 #ifdef GLOBAL_STAMP
     for(int i = 0; i< 20; i++) {
@@ -195,6 +205,7 @@ void wf_enqueue(wf_queue_head_t *q, wf_queue_node_t* node, wf_queue_op_head_t* o
 
 wf_queue_node_t* wf_dequeue(wf_queue_head_t *q, wf_queue_op_head_t* op_desc, int thread_id) {
 	LOG_PROLOG();
+
 #ifdef DEBUG
 stupid:;
 #endif
@@ -214,21 +225,26 @@ stupid:;
 	new_op_desc_ref->pending = 1;
 	new_op_desc_ref->enqueue = 0;
 	new_op_desc_ref->queue = q;
-
-#ifdef GLOBAL_STAMP
+	
+	#ifdef GLOBAL_STAMP
 	pthread_mutex_lock(&stamp_lock[thread_id]);
 	unsigned int new_stamp = global_stamp[thread_id] + 1;
 	global_stamp[thread_id]++;
 	pthread_mutex_unlock(&stamp_lock[thread_id]);
-#else
+	#else
 	unsigned int new_stamp = GET_TAG_FROM_TAGGEDPTR(*(op_desc->ops + thread_id)) + 1;
-#endif
+	#endif
 
+	#ifdef USE_MALLOC
+	*(op_desc->ops + thread_id) = new_op_desc_ref;
+	#else
 	*(op_desc->ops + thread_id) = GET_TAGGED_PTR(new_op_desc_ref, wf_queue_op_desc_t, new_stamp);
+	#endif
 	*(op_desc->ops_reserve + thread_id) = old_op_desc_ref;
+	
 
 	help(q, op_desc, thread_id, phase);
-	help_finish_enq(q, op_desc, thread_id);
+	help_finish_deq(q, op_desc, thread_id);
 
 	node = GET_PTR_FROM_TAGGEDPTR(*(op_desc->ops + thread_id), wf_queue_op_desc_t)->node;
 	/*if (unlikely(node == NULL)) {
@@ -241,6 +257,12 @@ stupid:;
 	    //LOG_DEBUG("node->deq_tid = %d, thread_id = %d, node_index = %d", node->deq_tid , thread_id, node->index);
 	    // REALLY STUPID
 		    goto stupid;
+	    } else {
+	        if (last_dequeued[thread_id] == node->index) {
+		    LOG_DEBUG("thread %d dequeued %d consecutively twice", thread_id, node->index);
+		} else {
+		    last_dequeued[thread_id] = node->index;
+		}
 	    }
 	}
 #endif
@@ -457,6 +479,7 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 			} else {   // queue is not empty
 
 				wf_queue_op_desc_t* old_op_desc_stamped_ref = *(op_desc->ops + thread_to_help);
+				//wf_queue_op_desc_t* old_op_desc_stamped_ref_cpy = old_op_desc_stamped_ref;
 				wf_queue_op_desc_t* old_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(old_op_desc_stamped_ref, wf_queue_op_desc_t);
                                 uint32_t old_stamp = GET_TAG_FROM_TAGGEDPTR(old_op_desc_stamped_ref);
 				uint32_t new_stamp =  old_stamp + 1;
@@ -500,6 +523,7 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 					}
 				} 
 				int minus_one_value = -1;
+				assert(minus_one_value == -1);
 				atomic_compare_exchange_strong(&(first->deq_tid), &minus_one_value, thread_to_help);
 				help_finish_deq(queue, op_desc, thread_id);
 			}

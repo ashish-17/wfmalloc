@@ -293,7 +293,7 @@ void test_wf_dequeue() {
     LOG_PROLOG();
 
     const int COUNT_THREADS = 10;
-    const int COUNT_OPS = 15000;
+    const int COUNT_OPS = 100000;
     const int TEST_ITEMS = COUNT_THREADS * COUNT_OPS + 1;
 
     dummy_data_wf_queue_t *dummy_data = (dummy_data_wf_queue_t*) malloc(sizeof(dummy_data_wf_queue_t) * (TEST_ITEMS));
