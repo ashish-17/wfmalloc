@@ -301,6 +301,9 @@ void test_wf_dequeue() {
     for (i = 0; i < (COUNT_THREADS * COUNT_OPS + 1); ++i) {
 	    dummy_data[i].data = i;
 	    init_wf_queue_node(&(dummy_data[i].node));
+#ifdef DEBUG
+	    dummy_data[i].node.index = i;
+#endif
     }
 
     wf_queue_head_t *q = create_wf_queue(&(dummy_data[0].node));
@@ -313,8 +316,6 @@ void test_wf_dequeue() {
     
     LOG_INFO("finished enqueue");
 
-    int final_tail_tag = GET_TAG_FROM_TAGGEDPTR(q->tail);
-    LOG_INFO("final tail stamp = %d", final_tail_tag);
 
     pthread_barrier_init(&barr, NULL, COUNT_THREADS);
     test_data_wf_queue_t thread_data[COUNT_THREADS];
@@ -333,6 +334,13 @@ void test_wf_dequeue() {
 
     LOG_INFO("*****Veryfying*****");
 
+    assert ((q->head == q->tail) && (GET_PTR_FROM_TAGGEDPTR(q->head, wf_queue_node_t)->next == NULL));
+    
+    int final_tail_tag = GET_TAG_FROM_TAGGEDPTR(q->tail);
+    int final_head_tag = GET_TAG_FROM_TAGGEDPTR(q->head);
+    LOG_INFO("final tail stamp = %d, final head stamp = %d", final_tail_tag, final_head_tag);
+    assert(final_tail_tag == final_head_tag);
+
     wf_queue_node_t* x;
     int j = 0;
     int total = 0;
@@ -344,6 +352,10 @@ void test_wf_dequeue() {
 	while ((x = thread_data[i].queue_data[j]) != NULL) {
 	    x = GET_PTR_FROM_TAGGEDPTR(x, wf_queue_node_t);
 	    dummy_data_wf_queue_t* val = (dummy_data_wf_queue_t*)list_entry(x, dummy_data_wf_queue_t, node);
+
+#ifdef DEBUG
+	    assert(x->index == val);
+#endif
 	    if (verify[val->data] == 1) {
 	    	LOG_WARN("Duplicate = %d", val->data);
 	    } else {
