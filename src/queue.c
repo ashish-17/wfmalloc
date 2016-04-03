@@ -195,7 +195,9 @@ void wf_enqueue(wf_queue_head_t *q, wf_queue_node_t* node, wf_queue_op_head_t* o
 
 wf_queue_node_t* wf_dequeue(wf_queue_head_t *q, wf_queue_op_head_t* op_desc, int thread_id) {
 	LOG_PROLOG();
-
+#ifdef DEBUG
+stupid:;
+#endif
 	wf_queue_node_t* node = NULL;
 	long phase = max_phase(op_desc) + 1;
 
@@ -236,8 +238,11 @@ wf_queue_node_t* wf_dequeue(wf_queue_head_t *q, wf_queue_op_head_t* op_desc, int
 #ifdef DEBUG
 	if(node) {
 	    if (node->deq_tid != thread_id) {
-	    LOG_DEBUG("node->deq_tid = %d, thread_id = %d, node_index = %d", node->deq_tid , thread_id, node->index);
+	    //LOG_DEBUG("node->deq_tid = %d, thread_id = %d, node_index = %d", node->deq_tid , thread_id, node->index);
+	    // REALLY STUPID
+		    goto stupid;
 	    }
+	}
 #endif
 	LOG_EPILOG();
 	return node;
@@ -415,14 +420,13 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 					wf_queue_op_desc_t* old_op_desc_stamped_ref = *(op_desc->ops + thread_to_help);
 					wf_queue_op_desc_t* old_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(old_op_desc_stamped_ref, wf_queue_op_desc_t);
 					uint32_t old_stamp = GET_TAG_FROM_TAGGEDPTR(old_op_desc_stamped_ref);
-					#ifdef GLOBAL_STAMP
-					pthread_mutex_lock(&stamp_lock[thread_to_help]);
-					unsigned int new_stamp = global_stamp[thread_to_help] + 1;
-					#else
 					uint32_t new_stamp =  old_stamp + 1;
-					#endif
 
 					if ((last_stamped_ref == queue->tail) && is_pending(op_desc, phase, thread_to_help)) {
+						#ifdef GLOBAL_STAMP
+						pthread_mutex_lock(&stamp_lock[thread_to_help]);
+						new_stamp = global_stamp[thread_to_help] + 1;
+						#endif
 
 						#ifdef USE_MALLOC
 						wf_queue_op_desc_t* new_op_desc_stamped_ref = (wf_queue_op_desc_t*) malloc(sizeof(wf_queue_op_desc_t));					
@@ -443,10 +447,10 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 							global_stamp[thread_to_help]++;
 							#endif
 						}
+						#ifdef GLOBAL_STAMP
+						pthread_mutex_unlock(&stamp_lock[thread_to_help]);
+						#endif
 					}
-					#ifdef GLOBAL_STAMP
-					pthread_mutex_unlock(&stamp_lock[thread_to_help]);
-					#endif
 				} else {
 					help_finish_enq(queue, op_desc, thread_id);
 				}
@@ -455,22 +459,18 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 				wf_queue_op_desc_t* old_op_desc_stamped_ref = *(op_desc->ops + thread_to_help);
 				wf_queue_op_desc_t* old_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(old_op_desc_stamped_ref, wf_queue_op_desc_t);
                                 uint32_t old_stamp = GET_TAG_FROM_TAGGEDPTR(old_op_desc_stamped_ref);
-				#ifdef GLOBAL_STAMP
-				pthread_mutex_lock(&stamp_lock[thread_to_help]);
-				unsigned int new_stamp = global_stamp[thread_to_help] + 1;
-				#else
 				uint32_t new_stamp =  old_stamp + 1;
-				#endif
 				//wf_queue_node_t* node = old_op_desc_ref->node;
 
 				if (!is_pending(op_desc, phase, thread_to_help)) {
-					#ifdef GLOBAL_STAMP
-					pthread_mutex_unlock(&stamp_lock[thread_to_help]);
-					#endif
 					break;
 				}
 
 				if (first_stamped_ref == queue->head && GET_PTR_FROM_TAGGEDPTR(old_op_desc_ref->node, wf_queue_node_t) != first) {
+					#ifdef GLOBAL_STAMP
+					pthread_mutex_lock(&stamp_lock[thread_to_help]);
+					new_stamp = global_stamp[thread_to_help] + 1;
+					#endif
 
 					#ifdef USE_MALLOC
 					wf_queue_op_desc_t* new_op_desc_stamped_ref = (wf_queue_op_desc_t*) malloc(sizeof(wf_queue_op_desc_t));					
@@ -498,12 +498,7 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 						#endif
 					    continue;
 					}
-				} else {
-				    #ifdef GLOBAL_STAMP
-				    pthread_mutex_unlock(&stamp_lock[thread_to_help]);
-				    #endif
-				
-				}
+				} 
 				int minus_one_value = -1;
 				atomic_compare_exchange_strong(&(first->deq_tid), &minus_one_value, thread_to_help);
 				help_finish_deq(queue, op_desc, thread_id);
@@ -530,14 +525,15 @@ void help_finish_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 		wf_queue_op_desc_t* old_op_desc_stamped_ref = *(op_desc->ops + deq_id);
 		wf_queue_op_desc_t* old_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(old_op_desc_stamped_ref, wf_queue_op_desc_t);
 		uint32_t old_stamp = GET_TAG_FROM_TAGGEDPTR(old_op_desc_stamped_ref);
-		#ifdef GLOBAL_STAMP
-		pthread_mutex_lock(&stamp_lock[deq_id]);
-		unsigned int new_stamp = global_stamp[deq_id] + 1;
-		#else
 		uint32_t new_stamp =  old_stamp + 1;
-		#endif
 
 		if ((first_stamped_ref == queue->head) && (next != NULL)) {
+			
+			#ifdef GLOBAL_STAMP
+			pthread_mutex_lock(&stamp_lock[deq_id]);
+			new_stamp = global_stamp[deq_id] + 1;
+			#endif
+
 			#ifdef USE_MALLOC
 			wf_queue_op_desc_t* new_op_desc_stamped_ref = (wf_queue_op_desc_t*) malloc(sizeof(wf_queue_op_desc_t));					
 			#else
@@ -558,13 +554,14 @@ void help_finish_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 				global_stamp[deq_id]++;
 				#endif
 			}
+
+			#ifdef GLOBAL_STAMP
+			pthread_mutex_unlock(&stamp_lock[deq_id]);
+			#endif
 			
 			wf_queue_node_t* new_stamped_ref = GET_TAGGED_PTR(GET_PTR_FROM_TAGGEDPTR(next_stamped_ref, wf_queue_node_t), wf_queue_node_t, new_stamp_head);
 			atomic_compare_exchange_strong(&(queue->head), &first_stamped_ref, new_stamped_ref); 
 		}
-		#ifdef GLOBAL_STAMP
-		pthread_mutex_unlock(&stamp_lock[deq_id]);
-		#endif
 	}
 
 	LOG_EPILOG();
