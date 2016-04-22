@@ -49,7 +49,13 @@ debug_data_t** debug_queue_data;
 #endif
 
 //#define USE_MALLOC
-//#define GLOBAL_STAMP
+#define GLOBAL_STAMP
+//#define STAMPED_MALLOC
+
+#ifdef STAMPED_MALLOC
+	#define GLOBAL_STAMP
+#endif
+
 
 #ifdef GLOBAL_STAMP
 pthread_mutex_t stamp_lock[20];
@@ -216,6 +222,8 @@ stupid:;
 	//assert(old_op_desc_ref->pending == 0);
 	#ifdef USE_MALLOC
 	wf_queue_op_desc_t* new_op_desc_ref = (wf_queue_op_desc_t*) malloc(sizeof(wf_queue_op_desc_t));
+	#elif defined(STAMPED_MALLOC)
+	wf_queue_op_desc_t* new_op_desc_ref = (wf_queue_op_desc_t*) malloc(sizeof(wf_queue_op_desc_t));
 	#else
 	wf_queue_op_desc_t* new_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(*(op_desc->ops_reserve + thread_id), wf_queue_op_desc_t);
 	#endif
@@ -237,6 +245,8 @@ stupid:;
 
 	#ifdef USE_MALLOC
 	*(op_desc->ops + thread_id) = new_op_desc_ref;
+	#elif defined(STAMPED_MALLOC)
+	 *(op_desc->ops + thread_id) = GET_TAGGED_PTR(new_op_desc_ref, wf_queue_op_desc_t, new_stamp);
 	#else
 	*(op_desc->ops + thread_id) = GET_TAGGED_PTR(new_op_desc_ref, wf_queue_op_desc_t, new_stamp);
 	#endif
@@ -256,7 +266,7 @@ stupid:;
 	    if (node->deq_tid != thread_id) {
 	    //LOG_DEBUG("node->deq_tid = %d, thread_id = %d, node_index = %d", node->deq_tid , thread_id, node->index);
 	    // REALLY STUPID
-		    goto stupid;
+	//	    goto stupid;
 	    } else {
 	        if (last_dequeued[thread_id] == node->index) {
 		    LOG_DEBUG("thread %d dequeued %d consecutively twice", thread_id, node->index);
@@ -452,6 +462,8 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 
 						#ifdef USE_MALLOC
 						wf_queue_op_desc_t* new_op_desc_stamped_ref = (wf_queue_op_desc_t*) malloc(sizeof(wf_queue_op_desc_t));					
+						#elif defined(STAMPED_MALLOC)
+						wf_queue_op_desc_t* new_op_desc_stamped_ref = GET_TAGGED_PTR(malloc(sizeof(wf_queue_op_desc_t)), wf_queue_op_desc_t, new_stamp);
 						#else
 					        wf_queue_op_desc_t* new_op_desc_stamped_ref = GET_TAGGED_PTR(*(op_desc->ops_reserve + thread_id), wf_queue_op_desc_t, new_stamp);
 						#endif
@@ -497,6 +509,8 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 
 					#ifdef USE_MALLOC
 					wf_queue_op_desc_t* new_op_desc_stamped_ref = (wf_queue_op_desc_t*) malloc(sizeof(wf_queue_op_desc_t));					
+					#elif defined(STAMPED_MALLOC)
+					wf_queue_op_desc_t* new_op_desc_stamped_ref = GET_TAGGED_PTR( malloc(sizeof(wf_queue_op_desc_t)), wf_queue_op_desc_t, new_stamp);
 					#else
 				        wf_queue_op_desc_t* new_op_desc_stamped_ref = GET_TAGGED_PTR(*(op_desc->ops_reserve + thread_id), wf_queue_op_desc_t, new_stamp);
 					#endif
@@ -524,7 +538,11 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 				} 
 				int minus_one_value = -1;
 				assert(minus_one_value == -1);
-				atomic_compare_exchange_strong(&(first->deq_tid), &minus_one_value, thread_to_help);
+				if (atomic_compare_exchange_strong(&(first->deq_tid), &minus_one_value, thread_to_help)) {
+				} else {
+				    assert(minus_one_value == first->deq_tid);
+				    assert(first->deq_tid != -1);
+				}
 				help_finish_deq(queue, op_desc, thread_id);
 			}
 		}
@@ -560,6 +578,8 @@ void help_finish_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 
 			#ifdef USE_MALLOC
 			wf_queue_op_desc_t* new_op_desc_stamped_ref = (wf_queue_op_desc_t*) malloc(sizeof(wf_queue_op_desc_t));					
+			#elif defined(STAMPED_MALLOC)
+			wf_queue_op_desc_t* new_op_desc_stamped_ref = GET_TAGGED_PTR(malloc(sizeof(wf_queue_op_desc_t)), wf_queue_op_desc_t, new_stamp);
 			#else
 			wf_queue_op_desc_t* new_op_desc_stamped_ref = GET_TAGGED_PTR(*(op_desc->ops_reserve + thread_id), wf_queue_op_desc_t, new_stamp);
 			#endif

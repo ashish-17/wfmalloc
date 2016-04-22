@@ -376,13 +376,13 @@ void test_wf_dequeue() {
     int count_found = 0;
     for (i = 0; i < COUNT_THREADS * COUNT_OPS; ++i) {
 	    if(verify[i] == 0) {
-//		    LOG_WARN("Missed Item = %d", i);
+		    LOG_WARN("Missed Item = %d", i);
 		    count_miss++;
 	    } else if (verify[i] == 1) {
 		    count_found++;
 	    } else {
 	    	duplicate_cnt++; 
-		LOG_WARN("Found %d duplicates of %d\n", verify[i], i);
+//		LOG_WARN("Found %d duplicates of %d\n", verify[i], i);
 	    }
     }
 
