@@ -60,6 +60,10 @@ static inline unsigned int quick_pow2(unsigned int x)
 		case 12:	return 4096;
 		case 13:	return 8192;
 		case 14:	return 16384;
+		case 15:	return 32768;
+		case 16:	return 65536;
+		case 17:	return 131072;
+		case 18:	return 262144;
 	}
 
 	return -1;
@@ -79,11 +83,20 @@ static inline unsigned long upper_power_of_two(unsigned long v)
 }
 
 
-#define COUNT_TAG_BITS 16
+#define COUNT_TAG_BITS 15
 #define TOTAL_BITS 64
 
 #define GET_TAGGED_PTR(ptr, type, tag) ((type*)((long)(ptr) | ((long)(tag) << (TOTAL_BITS-COUNT_TAG_BITS))))
 #define GET_PTR_FROM_TAGGEDPTR(ptr, type) ((type*)((long)(ptr) & (long)(~((long)(~0) << (TOTAL_BITS-COUNT_TAG_BITS)))))
 #define GET_TAG_FROM_TAGGEDPTR(ptr) ((unsigned int)(((unsigned long)(ptr) & (unsigned long)((unsigned long)(~0) << (TOTAL_BITS-COUNT_TAG_BITS))) >> (TOTAL_BITS-COUNT_TAG_BITS)))
+
+static inline unsigned int get_next_stamp(unsigned int stamp) {
+	unsigned int max_stamp = quick_pow2(COUNT_TAG_BITS) - 1;
+	if (stamp >= max_stamp) {
+		return 0;
+	} else {
+		return (stamp + 1);
+	}
+}
 
 #endif /* INCLUDES_UTILS_H_ */

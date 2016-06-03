@@ -43,7 +43,7 @@ typedef struct debug_data {
 } debug_data_t;
 
 #define COUNT_TEST_THREADS 10
-#define COUNT_OPS_PER_THREAD 400000
+#define COUNT_OPS_PER_THREAD 500000
 int* debug_queue_op_index;
 debug_data_t** debug_queue_data;
 #endif
@@ -165,7 +165,7 @@ void wf_enqueue(wf_queue_head_t *q, wf_queue_node_t* node, wf_queue_op_head_t* o
 	new_op_desc_ref->enqueue = 1;
 	new_op_desc_ref->queue = q;
 
-	int new_stamp = GET_TAG_FROM_TAGGEDPTR(*(op_desc->ops + thread_id)) + 1;
+	uint32_t new_stamp = get_next_stamp(GET_TAG_FROM_TAGGEDPTR(*(op_desc->ops + thread_id)));
 
 	*(op_desc->ops + thread_id) = GET_TAGGED_PTR(new_op_desc_ref, wf_queue_op_desc_t, new_stamp);
 	*(op_desc->ops_reserve + thread_id) = old_op_desc_ref;
@@ -192,7 +192,7 @@ wf_queue_node_t* wf_dequeue(wf_queue_head_t *q, wf_queue_op_head_t* op_desc, int
 	new_op_desc_ref->enqueue = 0;
 	new_op_desc_ref->queue = q;
 
-	unsigned int new_stamp = GET_TAG_FROM_TAGGEDPTR(*(op_desc->ops + thread_id)) + 1;
+	uint32_t new_stamp = get_next_stamp(GET_TAG_FROM_TAGGEDPTR(*(op_desc->ops + thread_id)));
 
 	*(op_desc->ops + thread_id) = GET_TAGGED_PTR(new_op_desc_ref, wf_queue_op_desc_t, new_stamp);
 	*(op_desc->ops_reserve + thread_id) = old_op_desc_ref;
@@ -263,7 +263,7 @@ void help_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 		wf_queue_node_t *new_node = GET_PTR_FROM_TAGGEDPTR(*(op_desc->ops + thread_to_help), wf_queue_op_desc_t)->node;
 
 		uint32_t old_stamp = GET_TAG_FROM_TAGGEDPTR(next_stamped_ref);
-		uint32_t new_stamp = (old_stamp + 1);
+		uint32_t new_stamp = get_next_stamp(old_stamp);
 		if (last_stamped_ref == queue->tail) {
 			if (next_stamped_ref == NULL) {
 				if (is_pending(op_desc, phase, thread_to_help)) {
@@ -298,7 +298,7 @@ void help_finish_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 
 	wf_queue_node_t *next_stamped_ref = tail_ref->next;
 	uint32_t old_stamp_tail = GET_TAG_FROM_TAGGEDPTR(queue->tail);
-	uint32_t new_stamp_tail = old_stamp_tail + 1;
+	uint32_t new_stamp_tail = get_next_stamp(old_stamp_tail);
 
 	if (GET_PTR_FROM_TAGGEDPTR(next_stamped_ref, wf_queue_node_t) != NULL) {
 		int enq_tid = GET_PTR_FROM_TAGGEDPTR(next_stamped_ref, wf_queue_node_t)->enq_tid;
@@ -306,7 +306,7 @@ void help_finish_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 		wf_queue_op_desc_t* old_op_desc_stamped_ref = *(op_desc->ops + enq_tid);
 		wf_queue_op_desc_t* old_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(old_op_desc_stamped_ref, wf_queue_op_desc_t);
 		uint32_t old_stamp = GET_TAG_FROM_TAGGEDPTR(old_op_desc_stamped_ref);
-		uint32_t new_stamp =  old_stamp + 1;
+		uint32_t new_stamp =  get_next_stamp(old_stamp);
 
 		if ((tail_stamped_ref == queue->tail) &&
 			(GET_PTR_FROM_TAGGEDPTR(old_op_desc_ref->node, wf_queue_node_t) == GET_PTR_FROM_TAGGEDPTR(next_stamped_ref, wf_queue_node_t))) {

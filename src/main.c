@@ -195,11 +195,12 @@ void test_wf_queue() {
     LOG_PROLOG();
 
     const int COUNT_THREADS = 10;
-    const int COUNT_ENQUEUE_OPS = 400000;
+    const int COUNT_ENQUEUE_OPS = 500000;
     const int COUNT_DeQUEUE_OPS = 0;
 
     // Result = 1 + COUNT_THREADS*COUNT_ENQUEUE_OPS - COUNT_THREADS*COUNT_DeQUEUE_OPS
 
+    LOG_DEBUG("Struct size = %d", sizeof(dummy_data_wf_queue_t));
     dummy_data_wf_queue_t *dummy_data = (dummy_data_wf_queue_t*) malloc(sizeof(dummy_data_wf_queue_t) * (COUNT_THREADS*COUNT_ENQUEUE_OPS + 1));
 
     int i = 0;
@@ -231,8 +232,8 @@ void test_wf_queue() {
     	pthread_join(threads[i], NULL);
     }
 
-    int verify[COUNT_THREADS*COUNT_ENQUEUE_OPS];
-    memset(verify, 0, sizeof(verify));
+    int *verify = (int*)malloc(sizeof(int) * COUNT_THREADS*COUNT_ENQUEUE_OPS);
+    memset(verify, 0, sizeof(int) * COUNT_THREADS*COUNT_ENQUEUE_OPS);
 
     wf_queue_node_t *x = GET_PTR_FROM_TAGGEDPTR(q->head, wf_queue_node_t);
     int total=0;
