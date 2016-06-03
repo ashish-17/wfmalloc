@@ -43,9 +43,9 @@ typedef struct debug_data {
 } debug_data_t;
 
 #define COUNT_TEST_THREADS 10
-#define COUNT_OPS_PER_THREAD 20000
-int debug_queue_op_index[COUNT_TEST_THREADS];
-debug_data_t debug_queue_data[COUNT_TEST_THREADS][COUNT_OPS_PER_THREAD];
+#define COUNT_OPS_PER_THREAD 400000
+int* debug_queue_op_index;
+debug_data_t** debug_queue_data;
 #endif
 
 wf_queue_head_t* create_wf_queue(wf_queue_node_t* sentinel) {
@@ -56,7 +56,14 @@ wf_queue_head_t* create_wf_queue(wf_queue_node_t* sentinel) {
 	queue->tail = queue->head;
 
 #ifdef DEBUG_QUEUE
+	debug_queue_op_index = (int*) malloc(sizeof(int) * COUNT_TEST_THREADS);
+	debug_queue_data = (debug_data_t**) malloc(sizeof(debug_data_t*) * COUNT_TEST_THREADS);
+
 	int i = 0, j = 0;
+	for (i = 0; i < COUNT_TEST_THREADS; i++) {
+		debug_queue_data[i] = (debug_data_t*) malloc(sizeof(debug_data_t) * COUNT_OPS_PER_THREAD);
+	}
+
 	for (i = 0; i < COUNT_TEST_THREADS; ++i) {
 		for (j = 0; j < COUNT_OPS_PER_THREAD; ++j) {
 			debug_queue_data[i][j].index = j;
@@ -210,22 +217,12 @@ void help(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id, lo
 	wf_queue_op_desc_t* op_desc_ref = NULL;
 	for (thread = 0; thread < num_threads; ++thread) {
 		op_desc_ref = GET_PTR_FROM_TAGGEDPTR(*(op_desc->ops + thread_id), wf_queue_op_desc_t);
-		if ((op_desc_ref->pending == 1) && (op_desc_ref->phase <= phase) && (thread != thread_id)) {
+		if ((op_desc_ref->pending == 1) && (op_desc_ref->phase <= phase)) {
 			if (unlikely(op_desc_ref->enqueue == 1)) {
 				help_enq(op_desc_ref->queue, op_desc, thread_id, thread, phase);
 			} else {
 				help_deq(op_desc_ref->queue, op_desc, thread_id, thread, phase);
 			}
-		}
-	}
-
-	// Help others and then help yourself
-	op_desc_ref = GET_PTR_FROM_TAGGEDPTR(*(op_desc->ops + thread_id), wf_queue_op_desc_t);
-	if (op_desc_ref->pending == 1) {
-		if (likely(op_desc_ref->enqueue == 1)) {
-			help_enq(op_desc_ref->queue, op_desc, thread_id, thread_id, phase);
-		} else {
-			help_deq(op_desc_ref->queue, op_desc, thread_id, thread_id, phase);
 		}
 	}
 
@@ -268,13 +265,13 @@ void help_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 		uint32_t old_stamp = GET_TAG_FROM_TAGGEDPTR(next_stamped_ref);
 		uint32_t new_stamp = (old_stamp + 1);
 		if (last_stamped_ref == queue->tail) {
-			if (GET_PTR_FROM_TAGGEDPTR(queue->tail, wf_queue_node_t)->next == NULL) {
+			if (next_stamped_ref == NULL) {
 				if (is_pending(op_desc, phase, thread_to_help)) {
 					wf_queue_node_t* new_stamped_ref = GET_TAGGED_PTR(new_node, wf_queue_node_t, new_stamp);
-					if (atomic_compare_exchange_strong(&(GET_PTR_FROM_TAGGEDPTR(queue->tail, wf_queue_node_t)->next), &next_stamped_ref, new_stamped_ref)) {
+					if (atomic_compare_exchange_strong(&(GET_PTR_FROM_TAGGEDPTR(last_stamped_ref, wf_queue_node_t)->next), &next_stamped_ref, new_stamped_ref)) {
 #ifdef DEBUG_QUEUE
 						if (debug_queue_data[thread_to_help][debug_queue_op_index[thread_to_help]].stepEnquueThreadId != -1) {
-							assert(debug_queue_data[thread_to_help][debug_queue_op_index[thread_to_help]].stepEnquueThreadId == -1);
+							//assert(debug_queue_data[thread_to_help][debug_queue_op_index[thread_to_help]].stepEnquueThreadId == -1);
 						}
 
 						debug_queue_data[thread_to_help][debug_queue_op_index[thread_to_help]].stepEnquueThreadId = thread_id;
@@ -329,7 +326,7 @@ void help_finish_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 				assert(old_op_desc_ref->node != NULL);
 #ifdef DEBUG_QUEUE
 				if (debug_queue_data[enq_tid][debug_queue_op_index[enq_tid]].stepOpDescUpdateThreadId != -1) {
-					assert(debug_queue_data[enq_tid][debug_queue_op_index[enq_tid]].stepOpDescUpdateThreadId == -1);
+					//assert(debug_queue_data[enq_tid][debug_queue_op_index[enq_tid]].stepOpDescUpdateThreadId == -1);
 				}
 
 				debug_queue_data[enq_tid][debug_queue_op_index[enq_tid]].stepOpDescUpdateThreadId = thread_id;
@@ -343,7 +340,7 @@ void help_finish_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 #ifdef DEBUG_QUEUE
 
 				if (debug_queue_data[enq_tid][debug_queue_op_index[enq_tid]].stepTailUpdateStepThreadId != -1) {
-					assert(debug_queue_data[enq_tid][debug_queue_op_index[enq_tid]].stepTailUpdateStepThreadId == -1);
+					//assert(debug_queue_data[enq_tid][debug_queue_op_index[enq_tid]].stepTailUpdateStepThreadId == -1);
 				}
 
 				debug_queue_data[enq_tid][debug_queue_op_index[enq_tid]].stepTailUpdateStepThreadId = thread_id;

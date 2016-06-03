@@ -30,6 +30,7 @@
 
 # Debug files
 *.dSYM/
+*.d
 #/Debug/
 #/exe/
 #/Release/
