@@ -179,13 +179,13 @@ void* test_func_wf_queue(void* thread_data) {
 	}
 
 	LOG_DEBUG("Finished Enqueue - %d", data->thread_id);
-	/*LOG_DEBUG("Start Dequeue - %d", data->thread_id);
+	LOG_DEBUG("Start Dequeue - %d", data->thread_id);
 
 	for (i = 0; i < data->count_deque_ops; ++i) {
 		wf_dequeue(data->q, data->op_desc, data->thread_id);
 	}
 
-	LOG_DEBUG("Finished Dequeue - %d", data->thread_id);*/
+	LOG_DEBUG("Finished Dequeue - %d", data->thread_id);
 
 	LOG_EPILOG();
 	return NULL;
@@ -194,9 +194,9 @@ void* test_func_wf_queue(void* thread_data) {
 void test_wf_queue() {
     LOG_PROLOG();
 
-    const int COUNT_THREADS = 10;
-    const int COUNT_ENQUEUE_OPS = 500000;
-    const int COUNT_DeQUEUE_OPS = 0;
+    const int COUNT_THREADS = 1;
+    const int COUNT_ENQUEUE_OPS = 50000;
+    const int COUNT_DeQUEUE_OPS = 1000;
 
     // Result = 1 + COUNT_THREADS*COUNT_ENQUEUE_OPS - COUNT_THREADS*COUNT_DeQUEUE_OPS
 
@@ -232,8 +232,8 @@ void test_wf_queue() {
     	pthread_join(threads[i], NULL);
     }
 
-    int *verify = (int*)malloc(sizeof(int) * COUNT_THREADS*COUNT_ENQUEUE_OPS);
-    memset(verify, 0, sizeof(int) * COUNT_THREADS*COUNT_ENQUEUE_OPS);
+    int *verify = (int*)malloc(sizeof(int) * COUNT_THREADS*(COUNT_ENQUEUE_OPS-COUNT_DeQUEUE_OPS));
+    memset(verify, 0, sizeof(int) * COUNT_THREADS*(COUNT_ENQUEUE_OPS-COUNT_DeQUEUE_OPS));
 
     wf_queue_node_t *x = GET_PTR_FROM_TAGGEDPTR(q->head, wf_queue_node_t);
     int total=0;
@@ -251,7 +251,7 @@ void test_wf_queue() {
 
     int count_miss = 0;
     int count_found = 0;
-    for (i = 0; i < COUNT_THREADS*COUNT_ENQUEUE_OPS+1; ++i) {
+    for (i = 0; i < COUNT_THREADS*(COUNT_ENQUEUE_OPS-COUNT_DeQUEUE_OPS)+1; ++i) {
 		if (verify[i] == 1) {
 			count_found++;
 		} else {
