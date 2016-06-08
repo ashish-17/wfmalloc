@@ -199,13 +199,19 @@ wf_queue_node_t* wf_dequeue(wf_queue_head_t *q, wf_queue_op_head_t* op_desc, int
 	*(op_desc->ops_reserve + thread_id) = old_op_desc_ref;
 
 	help(q, op_desc, thread_id, phase);
-	help_finish_enq(q, op_desc, thread_id);
+	help_finish_deq(q, op_desc, thread_id);
 
 	node = GET_PTR_FROM_TAGGEDPTR(*(op_desc->ops + thread_id), wf_queue_op_desc_t)->node;
 	/*if (unlikely(node == NULL)) {
 		LOG_WARN("Dequeued node is NULL");
 	}*/
-
+        #ifdef DEBUG
+	if (node) {
+	    if (node->deq_tid != thread_id) {
+    	        LOG_DEBUG("node->deq_tid = %d, thread_id = %d, node_index = %d, pending = %d", node->deq_tid , thread_id, node->index, GET_PTR_FROM_TAGGEDPTR(*(op_desc->ops + thread_id), wf_queue_op_desc_t)->pending);	    
+	    }
+	}
+	#endif
 	LOG_EPILOG();
 	return node;
 }
