@@ -51,7 +51,6 @@ debug_data_t** debug_queue_data;
 //#define USE_MALLOC
 //#define GLOBAL_STAMP_PER_THREAD
 //#define STAMPED_MALLOC
-
 #ifdef STAMPED_MALLOC
 	#define GLOBAL_STAMP_PER_THREAD
 #endif
@@ -268,7 +267,7 @@ stupid:;
 	    if (node->deq_tid != thread_id) {
 	    LOG_DEBUG("node->deq_tid = %d, thread_id = %d, node_index = %d, pending = %d", node->deq_tid , thread_id, node->index, my_op_desc->pending);
 	    // REALLY STUPID
-		    //goto stupid;
+	    //goto stupid;
 	    } else {
 	        if (last_dequeued[thread_id] == node->index) {
 		    LOG_DEBUG("thread %d dequeued %d consecutively twice", thread_id, node->index);
