@@ -293,7 +293,7 @@ void test_wf_dequeue() {
     LOG_PROLOG();
 
     const int COUNT_THREADS = 2;
-    const int COUNT_OPS = 10000;
+    const int COUNT_OPS = 100;
     const int TEST_ITEMS = COUNT_THREADS * COUNT_OPS + 1;
 
     dummy_data_wf_queue_t *dummy_data = (dummy_data_wf_queue_t*) malloc(sizeof(dummy_data_wf_queue_t) * (COUNT_THREADS * COUNT_OPS + 1));
@@ -384,6 +384,7 @@ void test_wf_dequeue() {
 		    LOG_WARN("Missed Item = %d", i);
 		    count_miss++;
 	    } else if (verify[i] == 1) {
+		    //LOG_INFO("%d dequeued by %d", i, duplicate_id[i]);
 		    count_found++;
 	    } else {
 		    duplicate_cnt++; 
