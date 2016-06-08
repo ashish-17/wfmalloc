@@ -165,7 +165,7 @@ typedef struct test_data_wf_queue {
 	dummy_data_wf_queue_t* dummy_data;
 } test_data_wf_queue_t;
 
-pthread_barrier_t barr;
+pthread_barrier_t barr,barr1;
 
 void* test_func_wf_queue(void* thread_data) {
     LOG_PROLOG();
@@ -179,6 +179,8 @@ void* test_func_wf_queue(void* thread_data) {
 	}
 
 	LOG_DEBUG("Finished Enqueue - %d", data->thread_id);
+
+	pthread_barrier_wait(&barr1);
 	LOG_DEBUG("Start Dequeue - %d", data->thread_id);
 
 	for (i = 0; i < data->count_deque_ops; ++i) {
@@ -194,9 +196,9 @@ void* test_func_wf_queue(void* thread_data) {
 void test_wf_queue() {
     LOG_PROLOG();
 
-    const int COUNT_THREADS = 1;
-    const int COUNT_ENQUEUE_OPS = 50000;
-    const int COUNT_DeQUEUE_OPS = 1000;
+    const int COUNT_THREADS = 10;
+    const int COUNT_ENQUEUE_OPS = 500000;
+    const int COUNT_DEQUEUE_OPS = 500000;
 
     // Result = 1 + COUNT_THREADS*COUNT_ENQUEUE_OPS - COUNT_THREADS*COUNT_DeQUEUE_OPS
 
@@ -213,13 +215,14 @@ void test_wf_queue() {
     wf_queue_op_head_t *op_desc = create_queue_op_desc(COUNT_THREADS);
     pthread_t threads[COUNT_THREADS];
     pthread_barrier_init(&barr, NULL, COUNT_THREADS);
+    pthread_barrier_init(&barr1, NULL, COUNT_THREADS);
 
     test_data_wf_queue_t thread_data[COUNT_THREADS];
 
     for (i = 0; i < COUNT_THREADS; ++i) {
     	thread_data[i].thread_id = i;
     	thread_data[i].count_enque_ops = COUNT_ENQUEUE_OPS;
-    	thread_data[i].count_deque_ops = COUNT_DeQUEUE_OPS;
+    	thread_data[i].count_deque_ops = COUNT_DEQUEUE_OPS;
     	thread_data[i].q = q;
     	thread_data[i].op_desc = op_desc;
     	thread_data[i].dummy_data = dummy_data + i*COUNT_ENQUEUE_OPS+1;
@@ -232,17 +235,22 @@ void test_wf_queue() {
     	pthread_join(threads[i], NULL);
     }
 
-    int *verify = (int*)malloc(sizeof(int) * COUNT_THREADS*(COUNT_ENQUEUE_OPS-COUNT_DeQUEUE_OPS));
-    memset(verify, 0, sizeof(int) * COUNT_THREADS*(COUNT_ENQUEUE_OPS-COUNT_DeQUEUE_OPS));
+    int *verify = (int*)malloc(sizeof(int) * (COUNT_THREADS*(COUNT_ENQUEUE_OPS) + 1));
+    memset(verify, 0, sizeof(int) * (COUNT_THREADS*(COUNT_ENQUEUE_OPS) + 1));
 
     wf_queue_node_t *x = GET_PTR_FROM_TAGGEDPTR(q->head, wf_queue_node_t);
     int total=0;
     while(x!=NULL){
     	dummy_data_wf_queue_t* val = (dummy_data_wf_queue_t*)list_entry(x, dummy_data_wf_queue_t, node);
-    	if (verify[val->data] == 1) {
-    		LOG_WARN("Duplicate = %d", val->data);
-    	} else {
-    		verify[val->data] = 1;
+    	if (val->data > (COUNT_THREADS*COUNT_ENQUEUE_OPS)) {
+    		LOG_WARN("Invalid value in node - %d", val->data);
+    	}
+    	else {
+        	if (verify[val->data] == 1) {
+        		LOG_WARN("Duplicate = %d", val->data);
+        	} else {
+        		verify[val->data] = 1;
+        	}
     	}
 
     	total++;
@@ -251,7 +259,7 @@ void test_wf_queue() {
 
     int count_miss = 0;
     int count_found = 0;
-    for (i = 0; i < COUNT_THREADS*(COUNT_ENQUEUE_OPS-COUNT_DeQUEUE_OPS)+1; ++i) {
+    for (i = 0; i < COUNT_THREADS*(COUNT_ENQUEUE_OPS)+1; ++i) {
 		if (verify[i] == 1) {
 			count_found++;
 		} else {
