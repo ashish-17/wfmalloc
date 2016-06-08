@@ -140,4 +140,14 @@ static uint16_t get_tag_from_taggedptr(void* ptr) {
 #define GET_TAG_FROM_TAGGEDPTR(ptr) ((unsigned int)(((unsigned long)(ptr) & (unsigned long)((unsigned long)(~0) << (TOTAL_BITS-COUNT_TAG_BITS))) >> (TOTAL_BITS-COUNT_TAG_BITS)))
 #endif
 
+static inline unsigned int get_next_stamp(unsigned int stamp) {
+	unsigned int max_stamp = quick_pow2(COUNT_TAG_BITS) - 1;
+	if (stamp >= max_stamp) {
+		return 0;
+	} else {
+		return (stamp + 1);
+	}
+}
+
+
 #endif /* INCLUDES_UTILS_H_ */

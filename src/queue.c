@@ -49,9 +49,15 @@ debug_data_t** debug_queue_data;
 #endif
 
 //#define USE_MALLOC
-//#define GLOBAL_STAMP
+//#define GLOBAL_STAMP_PER_THREAD
+//#define STAMPED_MALLOC
 
-#ifdef GLOBAL_STAMP
+#ifdef STAMPED_MALLOC
+	#define GLOBAL_STAMP_PER_THREAD
+#endif
+
+
+#ifdef GLOBAL_STAMP_PER_THREAD
 pthread_mutex_t stamp_lock[20];
 uint16_t global_stamp[20];
 #endif
@@ -73,8 +79,9 @@ wf_queue_head_t* create_wf_queue(wf_queue_node_t* sentinel) {
     }
 #endif
 
-#ifdef GLOBAL_STAMP
-    for(int i = 0; i< 20; i++) {
+#ifdef GLOBAL_STAMP_PER_THREAD
+    int i;
+    for(i = 0; i< 20; i++) {
         pthread_mutex_init(&stamp_lock[i], NULL);
 	global_stamp[i] = 0;
     }
@@ -213,8 +220,9 @@ stupid:;
 	long phase = max_phase(op_desc) + 1;
 
 	wf_queue_op_desc_t* old_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(*(op_desc->ops + thread_id), wf_queue_op_desc_t);
-	//assert(old_op_desc_ref->pending == 0);
 	#ifdef USE_MALLOC
+	wf_queue_op_desc_t* new_op_desc_ref = (wf_queue_op_desc_t*) malloc(sizeof(wf_queue_op_desc_t));
+	#elif defined(STAMPED_MALLOC)
 	wf_queue_op_desc_t* new_op_desc_ref = (wf_queue_op_desc_t*) malloc(sizeof(wf_queue_op_desc_t));
 	#else
 	wf_queue_op_desc_t* new_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(*(op_desc->ops_reserve + thread_id), wf_queue_op_desc_t);
@@ -226,10 +234,10 @@ stupid:;
 	new_op_desc_ref->enqueue = 0;
 	new_op_desc_ref->queue = q;
 	
-	#ifdef GLOBAL_STAMP
+	#ifdef GLOBAL_STAMP_PER_THREAD
 	pthread_mutex_lock(&stamp_lock[thread_id]);
-	unsigned int new_stamp = global_stamp[thread_id] + 1;
-	global_stamp[thread_id]++;
+	unsigned int new_stamp = get_next_stamp(global_stamp[thread_id]);
+	global_stamp[thread_id] = new_stamp;
 	pthread_mutex_unlock(&stamp_lock[thread_id]);
 	#else
 	unsigned int new_stamp = GET_TAG_FROM_TAGGEDPTR(*(op_desc->ops + thread_id)) + 1;
@@ -237,6 +245,8 @@ stupid:;
 
 	#ifdef USE_MALLOC
 	*(op_desc->ops + thread_id) = new_op_desc_ref;
+	#elif defined(STAMPED_MALLOC)
+	 *(op_desc->ops + thread_id) = GET_TAGGED_PTR(new_op_desc_ref, wf_queue_op_desc_t, new_stamp);
 	#else
 	*(op_desc->ops + thread_id) = GET_TAGGED_PTR(new_op_desc_ref, wf_queue_op_desc_t, new_stamp);
 	#endif
@@ -246,17 +256,19 @@ stupid:;
 	help(q, op_desc, thread_id, phase);
 	help_finish_deq(q, op_desc, thread_id);
 
-	node = GET_PTR_FROM_TAGGEDPTR(*(op_desc->ops + thread_id), wf_queue_op_desc_t)->node;
+	wf_queue_op_desc_t * my_op_desc = GET_PTR_FROM_TAGGEDPTR(*(op_desc->ops + thread_id), wf_queue_op_desc_t);
+	node = my_op_desc->node;
 	/*if (unlikely(node == NULL)) {
 		LOG_WARN("Dequeued node is NULL");
 	}*/
 
 #ifdef DEBUG
+	assert(my_op_desc->pending == 0);
 	if(node) {
 	    if (node->deq_tid != thread_id) {
-	    //LOG_DEBUG("node->deq_tid = %d, thread_id = %d, node_index = %d", node->deq_tid , thread_id, node->index);
+	    LOG_DEBUG("node->deq_tid = %d, thread_id = %d, node_index = %d, pending = %d", node->deq_tid , thread_id, node->index, my_op_desc->pending);
 	    // REALLY STUPID
-		    goto stupid;
+		    //goto stupid;
 	    } else {
 	        if (last_dequeued[thread_id] == node->index) {
 		    LOG_DEBUG("thread %d dequeued %d consecutively twice", thread_id, node->index);
@@ -326,7 +338,7 @@ void help_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 		wf_queue_node_t *new_node = GET_PTR_FROM_TAGGEDPTR(*(op_desc->ops + thread_to_help), wf_queue_op_desc_t)->node;
 
 		uint32_t old_stamp = GET_TAG_FROM_TAGGEDPTR(next_stamped_ref);
-		uint32_t new_stamp = (old_stamp + 1);
+		uint32_t new_stamp = (get_next_stamp(old_stamp));
 		if (last_stamped_ref == queue->tail) {
 			if (next_stamped_ref == NULL) {
 				if (is_pending(op_desc, phase, thread_to_help)) {
@@ -369,7 +381,7 @@ void help_finish_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 		wf_queue_op_desc_t* old_op_desc_stamped_ref = *(op_desc->ops + enq_tid);
 		wf_queue_op_desc_t* old_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(old_op_desc_stamped_ref, wf_queue_op_desc_t);
 		uint32_t old_stamp = GET_TAG_FROM_TAGGEDPTR(old_op_desc_stamped_ref);
-		uint32_t new_stamp =  old_stamp + 1;
+		uint32_t new_stamp =  get_next_stamp(old_stamp);
 
 		if ((tail_stamped_ref == queue->tail) &&
 			(GET_PTR_FROM_TAGGEDPTR(old_op_desc_ref->node, wf_queue_node_t) == GET_PTR_FROM_TAGGEDPTR(next_stamped_ref, wf_queue_node_t))) {
@@ -442,16 +454,18 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 					wf_queue_op_desc_t* old_op_desc_stamped_ref = *(op_desc->ops + thread_to_help);
 					wf_queue_op_desc_t* old_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(old_op_desc_stamped_ref, wf_queue_op_desc_t);
 					uint32_t old_stamp = GET_TAG_FROM_TAGGEDPTR(old_op_desc_stamped_ref);
-					uint32_t new_stamp =  old_stamp + 1;
+					uint32_t new_stamp =  get_next_stamp(old_stamp);
 
 					if ((last_stamped_ref == queue->tail) && is_pending(op_desc, phase, thread_to_help)) {
-						#ifdef GLOBAL_STAMP
+						#ifdef GLOBAL_STAMP_PER_THREAD
 						pthread_mutex_lock(&stamp_lock[thread_to_help]);
-						new_stamp = global_stamp[thread_to_help] + 1;
+						new_stamp = get_next_stamp(global_stamp[thread_to_help]);
 						#endif
 
 						#ifdef USE_MALLOC
 						wf_queue_op_desc_t* new_op_desc_stamped_ref = (wf_queue_op_desc_t*) malloc(sizeof(wf_queue_op_desc_t));					
+						#elif defined(STAMPED_MALLOC)
+						wf_queue_op_desc_t* new_op_desc_stamped_ref = GET_TAGGED_PTR(malloc(sizeof(wf_queue_op_desc_t)), wf_queue_op_desc_t, new_stamp);
 						#else
 					        wf_queue_op_desc_t* new_op_desc_stamped_ref = GET_TAGGED_PTR(*(op_desc->ops_reserve + thread_id), wf_queue_op_desc_t, new_stamp);
 						#endif
@@ -465,11 +479,11 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 						if (atomic_compare_exchange_strong((op_desc->ops + thread_to_help), &old_op_desc_stamped_ref, new_op_desc_stamped_ref)) {
 							// TODO: should we append stamped_ref or just ref is ok?
 							*(op_desc->ops_reserve + thread_id) = old_op_desc_ref;
-							#ifdef GLOBAL_STAMP
-							global_stamp[thread_to_help]++;
+							#ifdef GLOBAL_STAMP_PER_THREAD
+							global_stamp[thread_to_help] = new_stamp;
 							#endif
 						}
-						#ifdef GLOBAL_STAMP
+						#ifdef GLOBAL_STAMP_PER_THREAD
 						pthread_mutex_unlock(&stamp_lock[thread_to_help]);
 						#endif
 					}
@@ -482,7 +496,7 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 				//wf_queue_op_desc_t* old_op_desc_stamped_ref_cpy = old_op_desc_stamped_ref;
 				wf_queue_op_desc_t* old_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(old_op_desc_stamped_ref, wf_queue_op_desc_t);
                                 uint32_t old_stamp = GET_TAG_FROM_TAGGEDPTR(old_op_desc_stamped_ref);
-				uint32_t new_stamp =  old_stamp + 1;
+				uint32_t new_stamp =  get_next_stamp(old_stamp);
 				//wf_queue_node_t* node = old_op_desc_ref->node;
 
 				if (!is_pending(op_desc, phase, thread_to_help)) {
@@ -490,13 +504,15 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 				}
 
 				if (first_stamped_ref == queue->head && GET_PTR_FROM_TAGGEDPTR(old_op_desc_ref->node, wf_queue_node_t) != first) {
-					#ifdef GLOBAL_STAMP
+					#ifdef GLOBAL_STAMP_PER_THREAD
 					pthread_mutex_lock(&stamp_lock[thread_to_help]);
-					new_stamp = global_stamp[thread_to_help] + 1;
+					new_stamp = get_next_stamp(global_stamp[thread_to_help]);
 					#endif
 
 					#ifdef USE_MALLOC
 					wf_queue_op_desc_t* new_op_desc_stamped_ref = (wf_queue_op_desc_t*) malloc(sizeof(wf_queue_op_desc_t));					
+					#elif defined(STAMPED_MALLOC)
+					wf_queue_op_desc_t* new_op_desc_stamped_ref = GET_TAGGED_PTR( malloc(sizeof(wf_queue_op_desc_t)), wf_queue_op_desc_t, new_stamp);
 					#else
 				        wf_queue_op_desc_t* new_op_desc_stamped_ref = GET_TAGGED_PTR(*(op_desc->ops_reserve + thread_id), wf_queue_op_desc_t, new_stamp);
 					#endif
@@ -511,12 +527,12 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 					new_op_desc_ref->queue = queue;
 					if (atomic_compare_exchange_strong((op_desc->ops + thread_to_help), &old_op_desc_stamped_ref, new_op_desc_stamped_ref)) {
 						*(op_desc->ops_reserve + thread_id) = old_op_desc_ref;
-						#ifdef GLOBAL_STAMP
-						global_stamp[thread_to_help]++;
+						#ifdef GLOBAL_STAMP_PER_THREAD
+						global_stamp[thread_to_help] = get_next_stamp(global_stamp[thread_to_help]);
 				    		pthread_mutex_unlock(&stamp_lock[thread_to_help]);
 						#endif
 					} else {
-						#ifdef GLOBAL_STAMP
+						#ifdef GLOBAL_STAMP_PER_THREAD
 						pthread_mutex_unlock(&stamp_lock[thread_to_help]);
 						#endif
 					    continue;
@@ -524,7 +540,13 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 				} 
 				int minus_one_value = -1;
 				assert(minus_one_value == -1);
-				atomic_compare_exchange_strong(&(first->deq_tid), &minus_one_value, thread_to_help);
+				if (atomic_compare_exchange_strong(&(first->deq_tid), &minus_one_value, thread_to_help)) {
+				    assert(first->deq_tid == thread_to_help);
+				    assert(minus_one_value == -1);
+				} else {
+				    assert(minus_one_value == first->deq_tid);
+				    assert(first->deq_tid != -1);
+				}
 				help_finish_deq(queue, op_desc, thread_id);
 			}
 		}
@@ -549,17 +571,19 @@ void help_finish_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 		wf_queue_op_desc_t* old_op_desc_stamped_ref = *(op_desc->ops + deq_id);
 		wf_queue_op_desc_t* old_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(old_op_desc_stamped_ref, wf_queue_op_desc_t);
 		uint32_t old_stamp = GET_TAG_FROM_TAGGEDPTR(old_op_desc_stamped_ref);
-		uint32_t new_stamp =  old_stamp + 1;
+		uint32_t new_stamp =  get_next_stamp(old_stamp);
 
 		if ((first_stamped_ref == queue->head) && (next != NULL)) {
 			
-			#ifdef GLOBAL_STAMP
+			#ifdef GLOBAL_STAMP_PER_THREAD
 			pthread_mutex_lock(&stamp_lock[deq_id]);
-			new_stamp = global_stamp[deq_id] + 1;
+			new_stamp = get_next_stamp(global_stamp[deq_id]);
 			#endif
 
 			#ifdef USE_MALLOC
 			wf_queue_op_desc_t* new_op_desc_stamped_ref = (wf_queue_op_desc_t*) malloc(sizeof(wf_queue_op_desc_t));					
+			#elif defined(STAMPED_MALLOC)
+			wf_queue_op_desc_t* new_op_desc_stamped_ref = GET_TAGGED_PTR(malloc(sizeof(wf_queue_op_desc_t)), wf_queue_op_desc_t, new_stamp);
 			#else
 			wf_queue_op_desc_t* new_op_desc_stamped_ref = GET_TAGGED_PTR(*(op_desc->ops_reserve + thread_id), wf_queue_op_desc_t, new_stamp);
 			#endif
@@ -574,12 +598,12 @@ void help_finish_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 
 			if (atomic_compare_exchange_strong((op_desc->ops + deq_id), &old_op_desc_stamped_ref, new_op_desc_stamped_ref)) {
 				*(op_desc->ops_reserve + thread_id) = old_op_desc_ref;
-				#ifdef GLOBAL_STAMP
-				global_stamp[deq_id]++;
+				#ifdef GLOBAL_STAMP_PER_THREAD
+				global_stamp[deq_id] = get_next_stamp(global_stamp[deq_id]);
 				#endif
 			}
 
-			#ifdef GLOBAL_STAMP
+			#ifdef GLOBAL_STAMP_PER_THREAD
 			pthread_mutex_unlock(&stamp_lock[deq_id]);
 			#endif
 			
