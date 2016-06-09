@@ -43,7 +43,7 @@ typedef struct debug_data {
 } debug_data_t;
 
 #define COUNT_TEST_THREADS 10
-#define COUNT_OPS_PER_THREAD 500000
+#define COUNT_OPS_PER_THREAD 1000000
 int* debug_queue_op_index;
 debug_data_t** debug_queue_data;
 #endif
@@ -419,7 +419,7 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 						new_op_desc_ref->node = first;
 						new_op_desc_ref->queue = queue;
 
-						if (atomic_compare_exchange_strong((op_desc->ops + thread_to_help), &old_op_desc_stamped_ref, new_op_desc_stamped_ref)) {
+						if (old_op_desc_ref->pending && atomic_compare_exchange_strong((op_desc->ops + thread_to_help), &old_op_desc_stamped_ref, new_op_desc_stamped_ref)) {
 							*(op_desc->ops_reserve + thread_id) = old_op_desc_ref;
 						} else {
 							continue;
