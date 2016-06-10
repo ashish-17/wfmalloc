@@ -183,11 +183,22 @@ void* test_func_wf_queue(void* thread_data) {
 	pthread_barrier_wait(&barr1);
 	LOG_DEBUG("Start Dequeue - %d", data->thread_id);
 
+	wf_queue_node_t *x = NULL;
+	dummy_data_wf_queue_t* val = NULL;
+	int perThreadSanityFails = 0;
 	for (i = 0; i < data->count_deque_ops; ++i) {
-		wf_dequeue(data->q, data->op_desc, data->thread_id);
+		x = wf_dequeue(data->q, data->op_desc, data->thread_id);
+		val = (dummy_data_wf_queue_t*) list_entry(x, dummy_data_wf_queue_t, node);
+
+		if (val->data != x->sanityData) {
+			perThreadSanityFails++;
+		}
 	}
 
 	LOG_DEBUG("Finished Dequeue - %d", data->thread_id);
+	if (perThreadSanityFails > 0) {
+		LOG_DEBUG("Sanity Fails in dequeue - %d", perThreadSanityFails);
+	}
 
 	LOG_EPILOG();
 	return NULL;
