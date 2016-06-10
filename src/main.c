@@ -292,8 +292,8 @@ void* test_func_wf_dequeue(void* thread_data) {
 void test_wf_dequeue() {
     LOG_PROLOG();
 
-    const int COUNT_THREADS = 2;
-    const int COUNT_OPS = 100;
+    const int COUNT_THREADS = 10;
+    const int COUNT_OPS = 500000;
     const int TEST_ITEMS = COUNT_THREADS * COUNT_OPS + 1;
 
     dummy_data_wf_queue_t *dummy_data = (dummy_data_wf_queue_t*) malloc(sizeof(dummy_data_wf_queue_t) * (COUNT_THREADS * COUNT_OPS + 1));
@@ -351,9 +351,9 @@ void test_wf_dequeue() {
     int j = 0;
     int duplicate_cnt = 0;
     int total = 0;
-    int verify[COUNT_THREADS * COUNT_OPS];
+    int *verify = (int*) malloc(sizeof(int) * COUNT_THREADS * COUNT_OPS);
     memset(verify, 0, sizeof(verify));
-    int duplicate_id[COUNT_THREADS * COUNT_OPS];
+    int *duplicate_id = (int*) malloc(sizeof(int) * COUNT_THREADS * COUNT_OPS);
 
 
     for(i = 0; i < COUNT_THREADS; i++) {
