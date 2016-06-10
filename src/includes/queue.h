@@ -9,7 +9,9 @@
 #define INCLUDES_QUEUE_H_
 
 #include <stdint.h>
+#include<stdlib.h>
 
+int *nodes_dequeued; //= (int*)malloc(sizeof(int) * 5000005);
 struct wf_queue_node;
 
 typedef struct wf_queue_node {

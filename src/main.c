@@ -289,15 +289,42 @@ void* test_func_wf_dequeue(void* thread_data) {
 }
 
 
+
+int check_queue(wf_queue_head_t *q, int total_ops) {
+    wf_queue_node_t* head = GET_PTR_FROM_TAGGEDPTR(q->head, wf_queue_node_t);
+    wf_queue_node_t* tail = GET_PTR_FROM_TAGGEDPTR(q->tail, wf_queue_node_t);
+    int i = 0;
+    int error = 0;
+    while (head != tail) {
+	dummy_data_wf_queue_t* val = (dummy_data_wf_queue_t*)list_entry(head, dummy_data_wf_queue_t, node);
+	if (head->index != i) {
+	    LOG_WARN("head->index = %d, i = %d", head->index, i);		
+	    error = 1;
+	}
+	if (val->data != i) {
+	    LOG_ERROR("val->data = %d, i = %d", val->data, i);
+	    error = 1;
+	}
+	i++;
+	head = GET_PTR_FROM_TAGGEDPTR(head->next, wf_queue_node_t);
+    }
+    if (i != total_ops) {
+	    error = 1;
+    }
+    return error;  
+}
+
+
 void test_wf_dequeue() {
     LOG_PROLOG();
 
-    const int COUNT_THREADS = 2;
-    const int COUNT_OPS = 100;
+    const int COUNT_THREADS = 20;
+    const int COUNT_OPS = 30000;
     const int TEST_ITEMS = COUNT_THREADS * COUNT_OPS + 1;
 
     dummy_data_wf_queue_t *dummy_data = (dummy_data_wf_queue_t*) malloc(sizeof(dummy_data_wf_queue_t) * (COUNT_THREADS * COUNT_OPS + 1));
 
+    LOG_INFO("dummy_data = %p", dummy_data);
     int i = 0;
     for (i = 0; i < (COUNT_THREADS * COUNT_OPS + 1); ++i) {
 	    dummy_data[i].data = i;
@@ -316,7 +343,12 @@ void test_wf_dequeue() {
     }
     
     LOG_INFO("finished enqueue");
-
+    int res = check_queue(q, COUNT_THREADS * COUNT_OPS);
+    if (res) {
+	LOG_ERROR("queue is not correctly made");
+	assert(res == 0);
+    }
+    LOG_INFO("queue is correctly made by enqueue : %d", res);
 
     pthread_barrier_init(&barr, NULL, COUNT_THREADS);
     test_data_wf_queue_t thread_data[COUNT_THREADS];
@@ -351,18 +383,22 @@ void test_wf_dequeue() {
     int j = 0;
     int duplicate_cnt = 0;
     int total = 0;
-    int verify[COUNT_THREADS * COUNT_OPS];
+    int* verify = (int*) malloc(sizeof(int)* COUNT_THREADS * COUNT_OPS);
     memset(verify, 0, sizeof(verify));
-    int duplicate_id[COUNT_THREADS * COUNT_OPS];
+    int* duplicate_id = (int*) malloc(sizeof(int)* COUNT_THREADS * COUNT_OPS);
 
-
+    int ullu = 0;
     for(i = 0; i < COUNT_THREADS; i++) {
         j = 0;
 	while ((x = thread_data[i].queue_data[j]) != NULL) {
 	    x = GET_PTR_FROM_TAGGEDPTR(x, wf_queue_node_t);
 	    dummy_data_wf_queue_t* val = (dummy_data_wf_queue_t*)list_entry(x, dummy_data_wf_queue_t, node);
 	    #ifdef DEBUG
-	    assert(x->index == val->data);
+	    if (x->index != val->data) {
+	         ullu++;
+	    }
+	    
+	    //assert(x->index == val->data);
 	    #endif
 	    verify[val->data]++;
 
@@ -381,7 +417,7 @@ void test_wf_dequeue() {
     int count_found = 0;
     for (i = 0; i < COUNT_THREADS * COUNT_OPS; ++i) {
 	    if(verify[i] == 0) {
-		    LOG_WARN("Missed Item = %d", i);
+		    LOG_WARN("Missed Item = %d but deq_tid = %d", i, nodes_dequeued[i]);
 		    count_miss++;
 	    } else if (verify[i] == 1) {
 		    //LOG_INFO("%d dequeued by %d", i, duplicate_id[i]);
@@ -392,10 +428,10 @@ void test_wf_dequeue() {
 	    }
     }
 
-    LOG_INFO("Number of missed items = %d", count_miss);
-    LOG_INFO("Number of duplicates = %d", duplicate_cnt);
-    LOG_INFO("Total number of items dequeued = %d", total);
-
+    printf("Number of missed items = %d\n", count_miss);
+    printf("Number of duplicates = %d\n", duplicate_cnt);
+    printf("Total number of items dequeued = %d\n", total);
+    printf("Corrupted nodes = %d\n", ullu);
     LOG_EPILOG();
 }
 
