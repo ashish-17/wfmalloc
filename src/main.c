@@ -202,13 +202,13 @@ void test_wf_queue() {
 
     // Result = 1 + COUNT_THREADS*COUNT_ENQUEUE_OPS - COUNT_THREADS*COUNT_DeQUEUE_OPS
 
-    LOG_DEBUG("Struct size = %d", sizeof(dummy_data_wf_queue_t));
     dummy_data_wf_queue_t *dummy_data = (dummy_data_wf_queue_t*) malloc(sizeof(dummy_data_wf_queue_t) * (COUNT_THREADS*COUNT_ENQUEUE_OPS + 1));
 
     int i = 0;
     for (i = 0; i < (COUNT_THREADS*COUNT_ENQUEUE_OPS + 1); ++i) {
     	dummy_data[i].data = i;
     	init_wf_queue_node(&(dummy_data[i].node));
+    	dummy_data[i].node.sanityData = i;
     }
 
     wf_queue_head_t *q = create_wf_queue(&(dummy_data[0].node));
@@ -240,6 +240,7 @@ void test_wf_queue() {
 
     wf_queue_node_t *x = GET_PTR_FROM_TAGGEDPTR(q->head, wf_queue_node_t);
     int total=0;
+    int sanityFails = 0;
     while(x!=NULL){
     	dummy_data_wf_queue_t* val = (dummy_data_wf_queue_t*)list_entry(x, dummy_data_wf_queue_t, node);
     	if (val->data > (COUNT_THREADS*COUNT_ENQUEUE_OPS)) {
@@ -253,6 +254,9 @@ void test_wf_queue() {
         	}
     	}
 
+    	if (val->data != val->node.sanityData) {
+    		sanityFails++;
+    	}
     	total++;
     	x=GET_PTR_FROM_TAGGEDPTR(x->next, wf_queue_node_t);
     }
@@ -268,6 +272,7 @@ void test_wf_queue() {
     }
 
     LOG_INFO("Number of missed items = %d", count_miss);
+    LOG_INFO("Number of sanity fails = %d", sanityFails);
     LOG_INFO("Number of items enqueued = %d", count_found);
     LOG_INFO("Total number of items in queue = %d", total);
 

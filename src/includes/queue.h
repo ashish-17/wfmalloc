@@ -16,6 +16,7 @@ typedef struct wf_queue_node {
 	struct wf_queue_node* next;
 	int enq_tid;
 	int deq_tid; // use CAS to update it
+	int sanityData;
 } wf_queue_node_t;
 
 typedef struct wf_queue_head {
