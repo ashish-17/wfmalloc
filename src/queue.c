@@ -25,67 +25,12 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 void help_finish_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id);
 void help_finish_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id);
 
-#ifdef DEBUG_QUEUE
-typedef struct debug_data {
-	int index;
-	wf_queue_node_t *tail;
-	int stepEnquueThreadId;
-	wf_queue_node_t* old_stamped_ref_next;
-	wf_queue_node_t* new_stamped_ref_next;
-
-	int stepOpDescUpdateThreadId;
-	wf_queue_op_desc_t* old_stamped_ref_op_desc;
-	wf_queue_op_desc_t* new_stamped_ref_op_desc;
-
-	int stepTailUpdateStepThreadId;
-	wf_queue_node_t* old_stamped_ref_tail;
-	wf_queue_node_t* new_stamped_ref_tail;
-} debug_data_t;
-
-#define COUNT_TEST_THREADS 10
-#define COUNT_OPS_PER_THREAD 1000000
-int* debug_queue_op_index;
-debug_data_t** debug_queue_data;
-#endif
-
 wf_queue_head_t* create_wf_queue(wf_queue_node_t* sentinel) {
 	LOG_PROLOG();
 
 	wf_queue_head_t* queue = (wf_queue_head_t*)malloc(sizeof(wf_queue_head_t));
 	queue->head = GET_TAGGED_PTR(sentinel, wf_queue_node_t, 0);
 	queue->tail = queue->head;
-
-#ifdef DEBUG_QUEUE
-	debug_queue_op_index = (int*) malloc(sizeof(int) * COUNT_TEST_THREADS);
-	debug_queue_data = (debug_data_t**) malloc(sizeof(debug_data_t*) * COUNT_TEST_THREADS);
-
-	int i = 0, j = 0;
-	for (i = 0; i < COUNT_TEST_THREADS; i++) {
-		debug_queue_data[i] = (debug_data_t*) malloc(sizeof(debug_data_t) * COUNT_OPS_PER_THREAD);
-	}
-
-	for (i = 0; i < COUNT_TEST_THREADS; ++i) {
-		for (j = 0; j < COUNT_OPS_PER_THREAD; ++j) {
-			debug_queue_data[i][j].index = j;
-
-			debug_queue_data[i][j].tail = NULL;
-
-			debug_queue_data[i][j].stepEnquueThreadId = -1;
-			debug_queue_data[i][j].old_stamped_ref_next = NULL;
-			debug_queue_data[i][j].new_stamped_ref_next = NULL;
-
-			debug_queue_data[i][j].stepOpDescUpdateThreadId = -1;
-			debug_queue_data[i][j].old_stamped_ref_op_desc = NULL;
-			debug_queue_data[i][j].new_stamped_ref_op_desc = NULL;
-
-			debug_queue_data[i][j].stepTailUpdateStepThreadId = -1;
-			debug_queue_data[i][j].old_stamped_ref_tail = NULL;
-			debug_queue_data[i][j].new_stamped_ref_tail = NULL;
-		}
-
-		debug_queue_op_index[i] = -1;
-	}
-#endif
 
 	LOG_EPILOG();
 	return queue;
@@ -148,10 +93,6 @@ void wf_enqueue(wf_queue_head_t *q, wf_queue_node_t* node, wf_queue_op_head_t* o
 
 	long phase = max_phase(op_desc) + 1;
 
-#ifdef DEBUG_QUEUE
-	debug_queue_op_index[thread_id]++;
-#endif
-
 	wf_queue_op_desc_t* old_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(*(op_desc->ops + thread_id), wf_queue_op_desc_t);
 	wf_queue_op_desc_t* new_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(*(op_desc->ops_reserve + thread_id), wf_queue_op_desc_t);
 
@@ -205,7 +146,6 @@ wf_queue_node_t* wf_dequeue(wf_queue_head_t *q, wf_queue_op_head_t* op_desc, int
 	} else if (node->deq_tid != thread_id) {
 		printf("\nProblem %d %d", node->deq_tid, thread_id);
 	}
-
 
 	LOG_EPILOG();
 	return node;
@@ -271,15 +211,6 @@ void help_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 				if (is_pending(op_desc, phase, thread_to_help)) {
 					wf_queue_node_t* new_stamped_ref = GET_TAGGED_PTR(new_node, wf_queue_node_t, new_stamp);
 					if (atomic_compare_exchange_strong(&(GET_PTR_FROM_TAGGEDPTR(last_stamped_ref, wf_queue_node_t)->next), &next_stamped_ref, new_stamped_ref)) {
-#ifdef DEBUG_QUEUE
-						if (debug_queue_data[thread_to_help][debug_queue_op_index[thread_to_help]].stepEnquueThreadId != -1) {
-							//assert(debug_queue_data[thread_to_help][debug_queue_op_index[thread_to_help]].stepEnquueThreadId == -1);
-						}
-
-						debug_queue_data[thread_to_help][debug_queue_op_index[thread_to_help]].stepEnquueThreadId = thread_id;
-						debug_queue_data[thread_to_help][debug_queue_op_index[thread_to_help]].old_stamped_ref_next = next_stamped_ref;
-						debug_queue_data[thread_to_help][debug_queue_op_index[thread_to_help]].new_stamped_ref_next = new_stamped_ref;
-#endif
 						help_finish_enq(queue, op_desc, thread_id);
 						return;
 					}
@@ -326,29 +257,11 @@ void help_finish_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 				*(op_desc->ops_reserve + thread_id) = old_op_desc_ref;
 				assert(old_op_desc_ref->pending == 1);
 				assert(old_op_desc_ref->node != NULL);
-#ifdef DEBUG_QUEUE
-				if (debug_queue_data[enq_tid][debug_queue_op_index[enq_tid]].stepOpDescUpdateThreadId != -1) {
-					//assert(debug_queue_data[enq_tid][debug_queue_op_index[enq_tid]].stepOpDescUpdateThreadId == -1);
-				}
-
-				debug_queue_data[enq_tid][debug_queue_op_index[enq_tid]].stepOpDescUpdateThreadId = thread_id;
-				debug_queue_data[enq_tid][debug_queue_op_index[enq_tid]].old_stamped_ref_op_desc = old_op_desc_stamped_ref;
-				debug_queue_data[enq_tid][debug_queue_op_index[enq_tid]].new_stamped_ref_op_desc = new_op_desc_stamped_ref;
-#endif
 			}
 
 			wf_queue_node_t* new_stamped_ref = GET_TAGGED_PTR(GET_PTR_FROM_TAGGEDPTR(next_stamped_ref, wf_queue_node_t), wf_queue_node_t, new_stamp_tail);
 			if (atomic_compare_exchange_strong(&(queue->tail), &tail_stamped_ref, new_stamped_ref)) {
-#ifdef DEBUG_QUEUE
 
-				if (debug_queue_data[enq_tid][debug_queue_op_index[enq_tid]].stepTailUpdateStepThreadId != -1) {
-					//assert(debug_queue_data[enq_tid][debug_queue_op_index[enq_tid]].stepTailUpdateStepThreadId == -1);
-				}
-
-				debug_queue_data[enq_tid][debug_queue_op_index[enq_tid]].stepTailUpdateStepThreadId = thread_id;
-				debug_queue_data[enq_tid][debug_queue_op_index[enq_tid]].old_stamped_ref_tail = tail_stamped_ref;
-				debug_queue_data[enq_tid][debug_queue_op_index[enq_tid]].new_stamped_ref_tail = new_stamped_ref;
-#endif
 			}
 		} else {
 			/*LOG_DEBUG("tail_stamped_ref == %p, queue->tail = %p", tail_stamped_ref, queue->tail);
@@ -376,7 +289,6 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 
 		if (first_stamped_ref == queue->head) {
 			if (first == last) {
-				LOG_WARN("Empty");
 				if (next == NULL) {
 					wf_queue_op_desc_t* old_op_desc_stamped_ref = *(op_desc->ops + thread_to_help);
 					wf_queue_op_desc_t* old_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(old_op_desc_stamped_ref, wf_queue_op_desc_t);
@@ -392,7 +304,7 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 						new_op_desc_ref->enqueue = false;
 						new_op_desc_ref->node = NULL;
 						new_op_desc_ref->queue = queue;
-						if (old_op_desc_ref->pending && atomic_compare_exchange_strong((op_desc->ops + thread_to_help), &old_op_desc_stamped_ref, new_op_desc_stamped_ref)) {
+						if (atomic_compare_exchange_strong((op_desc->ops + thread_to_help), &old_op_desc_stamped_ref, new_op_desc_stamped_ref)) {
 							*(op_desc->ops_reserve + thread_id) = old_op_desc_ref;
 						}
 					}
@@ -419,7 +331,7 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 						new_op_desc_ref->node = first;
 						new_op_desc_ref->queue = queue;
 
-						if (old_op_desc_ref->pending && atomic_compare_exchange_strong((op_desc->ops + thread_to_help), &old_op_desc_stamped_ref, new_op_desc_stamped_ref)) {
+						if (atomic_compare_exchange_strong((op_desc->ops + thread_to_help), &old_op_desc_stamped_ref, new_op_desc_stamped_ref)) {
 							*(op_desc->ops_reserve + thread_id) = old_op_desc_ref;
 						} else {
 							continue;
