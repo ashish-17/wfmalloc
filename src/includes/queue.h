@@ -24,8 +24,8 @@ typedef struct wf_queue_node {
 } wf_queue_node_t;
 
 typedef struct wf_queue_head {
-	wf_queue_node_t* head;
-	wf_queue_node_t* tail;
+	volatile wf_queue_node_t* head;
+	volatile wf_queue_node_t* tail;
 } wf_queue_head_t;
 
 /*
@@ -35,7 +35,7 @@ typedef struct wf_queues_op_desc {
 	long phase;
 	uint8_t pending;
 	uint8_t enqueue;
-	wf_queue_node_t * node;
+	volatile wf_queue_node_t * node;
 	wf_queue_head_t* queue;
 } wf_queue_op_desc_t;
 
