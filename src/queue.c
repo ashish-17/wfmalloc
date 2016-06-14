@@ -285,6 +285,25 @@ void help_finish_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 	LOG_EPILOG();
 }
 
+
+wf_queue_node_t* compute_next_head1(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id, int thread_to_help, wf_queue_node_t *first_stamped_ref) {
+    LOG_PROLOG();
+    
+    wf_queue_node_t *next_head = NULL;
+	wf_queue_op_desc_t* old_op_desc_stamped_ref = *(op_desc->ops + thread_to_help);
+	wf_queue_op_desc_t* old_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(old_op_desc_stamped_ref, wf_queue_op_desc_t);
+        uint32_t num_ops = old_op_desc_ref->num_ops; 
+	
+	next_head = GET_PTR_FROM_TAGGEDPTR(first_stamped_ref, wf_queue_node_t)->next;
+	    while((num_ops > 1) && (GET_PTR_FROM_TAGGEDPTR(next_head, wf_queue_node_t) != NULL)) {
+		next_head = GET_PTR_FROM_TAGGEDPTR(next_head, wf_queue_node_t)->next;
+		num_ops--;
+	    }
+    
+    LOG_EPILOG();
+    return next_head;
+}
+
 void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id, int thread_to_help, long phase) {
 	LOG_PROLOG();
 
@@ -292,7 +311,7 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 
 		wf_queue_node_t *first_stamped_ref = queue->head;
 		wf_queue_node_t *last_stamped_ref = queue->tail;
-		wf_queue_node_t *next_stamped_ref = GET_PTR_FROM_TAGGEDPTR(first_stamped_ref, wf_queue_node_t)->next;
+		wf_queue_node_t *next_stamped_ref = compute_next_head1(queue, op_desc, thread_id, thread_to_help, first_stamped_ref); //GET_PTR_FROM_TAGGEDPTR(first_stamped_ref, wf_queue_node_t)->next;
 		wf_queue_node_t *first = GET_PTR_FROM_TAGGEDPTR(first_stamped_ref, wf_queue_node_t);
 		wf_queue_node_t *last = GET_PTR_FROM_TAGGEDPTR(last_stamped_ref, wf_queue_node_t);
 		wf_queue_node_t *next = GET_PTR_FROM_TAGGEDPTR(next_stamped_ref, wf_queue_node_t);
@@ -321,7 +340,7 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 						}
 					}
 				} else {
-					help_finish_deq(queue, op_desc, thread_id);
+					help_finish_enq(queue, op_desc, thread_id);
 				}
 			} else {
 				wf_queue_op_desc_t* old_op_desc_stamped_ref = *(op_desc->ops + thread_to_help);
@@ -361,6 +380,7 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 	LOG_EPILOG();
 }
 
+
 wf_queue_node_t* compute_next_head(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id, int deq_id, wf_queue_node_t *first_stamped_ref) {
     LOG_PROLOG();
     
@@ -372,7 +392,8 @@ wf_queue_node_t* compute_next_head(wf_queue_head_t* queue, wf_queue_op_head_t* o
 	// check to see if num_ops actually correspond to the node pointed to by head.
 	// op_desc[deq_id] should not have changed
 	wf_queue_node_t *temp = GET_PTR_FROM_TAGGEDPTR(first_stamped_ref, wf_queue_node_t)->next;
-	if (old_op_desc_ref->node == first_stamped_ref) {
+//	if (old_op_desc_ref->node == first_stamped_ref) {
+	if (1) {
 	    while((num_ops > 0) && (GET_PTR_FROM_TAGGEDPTR(temp, wf_queue_node_t) != NULL)) {
 	        next_head = temp;
 		temp = GET_PTR_FROM_TAGGEDPTR(temp, wf_queue_node_t)->next;
@@ -392,13 +413,13 @@ void help_finish_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 	wf_queue_node_t *first = GET_PTR_FROM_TAGGEDPTR(first_stamped_ref, wf_queue_node_t);
 	int deq_id = first->deq_tid;
 	
-	wf_queue_node_t *next_stamped_ref = compute_next_head(queue, op_desc, thread_id, deq_id, first_stamped_ref); //GET_PTR_FROM_TAGGEDPTR(first_stamped_ref, wf_queue_node_t)->next;
+	if (deq_id != -1) {
+	wf_queue_node_t *next_stamped_ref = compute_next_head1(queue, op_desc, thread_id, deq_id, first_stamped_ref); //GET_PTR_FROM_TAGGEDPTR(first_stamped_ref, wf_queue_node_t)->next;
 	wf_queue_node_t *next = GET_PTR_FROM_TAGGEDPTR(next_stamped_ref, wf_queue_node_t);
 
 	int old_stamp_head = GET_TAG_FROM_TAGGEDPTR(first_stamped_ref);
 	int new_stamp_head = get_next_stamp(old_stamp_head);
 
-	if (deq_id != -1) {
 		wf_queue_op_desc_t* old_op_desc_stamped_ref = *(op_desc->ops + deq_id);
 		wf_queue_op_desc_t* old_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(old_op_desc_stamped_ref, wf_queue_op_desc_t);
 		uint32_t old_stamp = GET_TAG_FROM_TAGGEDPTR(old_op_desc_stamped_ref);
