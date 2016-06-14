@@ -939,7 +939,7 @@ int main() {
 	res += test_wf_dequeue(i);
     }
     LOG_INFO("no of times tests failed = %d", res);
-    //test_wf_enq_deq();
+    test_wf_enq_deq();
     //test_local_pool();
     //test_pools_single_thread();
     //test_pools_multi_thread();

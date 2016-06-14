@@ -313,7 +313,7 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 						}
 					}
 				} else {
-					help_finish_deq(queue, op_desc, thread_id);
+					help_finish_enq(queue, op_desc, thread_id);
 				}
 			} else {
 				wf_queue_op_desc_t* old_op_desc_stamped_ref = *(op_desc->ops + thread_to_help);
