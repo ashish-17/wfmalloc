@@ -28,6 +28,7 @@ typedef struct wf_queue_head {
  * One for each thread to sync operations among threads.
  */
 typedef struct wf_queues_op_desc {
+	uint32_t num_ops;
 	long phase;
 	uint8_t pending;
 	uint8_t enqueue;
@@ -51,7 +52,7 @@ wf_queue_op_head_t* create_queue_op_desc(int num_threads);
 
 void wf_enqueue(wf_queue_head_t *q, wf_queue_node_t* node, wf_queue_op_head_t* op_desc, int thread_id);
 
-wf_queue_node_t* wf_dequeue(wf_queue_head_t *q, wf_queue_op_head_t* op_desc, int thread_id);
+wf_queue_node_t* wf_dequeue(wf_queue_head_t *q, wf_queue_op_head_t* op_desc, int thread_id, uint32_t num_ops);
 
 int wf_queue_count_nodes(wf_queue_head_t* head);
 

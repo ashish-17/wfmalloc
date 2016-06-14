@@ -70,7 +70,7 @@ page_t* get_page_shared_pool(shared_pool_t *pool, local_pool_t *l_pool, int thre
 		bin_idx = quick_log2(upper_power_of_two(block_size)) - quick_log2(MIN_BLOCK_SIZE);
 	}
 
-	wf_queue_node_t* tmp = wf_dequeue(pool->thread_data[queue_idx].bins[bin_idx], pool->op_desc, thread_id);
+	wf_queue_node_t* tmp = wf_dequeue(pool->thread_data[queue_idx].bins[bin_idx], pool->op_desc, thread_id, 1);
 	if (likely(tmp != NULL)) {
 		ret = (page_t*)list_entry(tmp, page_header_t, wf_node);
 	} else {

@@ -189,7 +189,7 @@ void* test_func_wf_queue(void* thread_data) {
 	dummy_data_wf_queue_t* val = NULL;
 	int perThreadSanityFails = 0;
 	for (i = 0; i < data->count_deque_ops; ++i) {
-		x = wf_dequeue(data->q, data->op_desc, data->thread_id);
+		x = wf_dequeue(data->q, data->op_desc, data->thread_id, 1);
 		val = (dummy_data_wf_queue_t*) list_entry(x, dummy_data_wf_queue_t, node);
 
 		if (val->data != x->sanityData) {
@@ -300,7 +300,7 @@ void* test_func_wf_dequeue(void* thread_data) {
 
     int i = 0;
     while(1) {
-        data->queue_data[i] = wf_dequeue(data->q, data->op_desc, data->thread_id);
+        data->queue_data[i] = wf_dequeue(data->q, data->op_desc, data->thread_id, 1);
         if (data->queue_data[i] == NULL) {
 	    return NULL;
 	}
@@ -784,7 +784,7 @@ void* simple_test_helper(void* thread_data) {
 #endif
 
 	for (i = 0; i < number_ops; i++) {
-		data->queue_data[i] = wf_dequeue(data->q, data->op_desc, data->thread_id);
+		data->queue_data[i] = wf_dequeue(data->q, data->op_desc, data->thread_id, 1);
 		if (data->queue_data[i] == NULL) {
 			LOG_ERROR("thread %d could not dequeue", data->thread_id)
 				assert(data->queue_data[i] != NULL);
