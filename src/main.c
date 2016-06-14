@@ -334,10 +334,10 @@ int check_queue(wf_queue_head_t *q, int total_ops) {
     return error;
 }
 
-void test_wf_dequeue(unsigned COUNT_THREADS) {
+int test_wf_dequeue(unsigned COUNT_THREADS) {
 	LOG_PROLOG();
 
-	const int COUNT_OPS = 30000;
+	const int COUNT_OPS = 50000;
 	const int TEST_ITEMS = COUNT_THREADS * COUNT_OPS + 1;
 
 	dummy_data_wf_queue_t *dummy_data = (dummy_data_wf_queue_t*) malloc(
@@ -457,6 +457,9 @@ void test_wf_dequeue(unsigned COUNT_THREADS) {
 	printf("Total number of items dequeued = %d\n", total);
 	printf("Corrupted nodes = %d\n", ullu);
 	LOG_EPILOG();
+	if ((count_miss != 0) || (duplicate_cnt != 0))
+	    return 1;
+	else return 0;
 }
 
 void* test_worker_wfmalloc(void* data) {
@@ -931,10 +934,12 @@ int main() {
     //test_page();
     //test_wf_queue();
     //test_wf_dequeue();
-	//for (unsigned i = 10; i < 15; i++) {
-	//	test_wf_dequeue(i);
-	//}
-	test_wf_enq_deq();
+    int res = 0;
+    for (unsigned i = 10; i < 33; i++) {
+	res += test_wf_dequeue(i);
+    }
+    LOG_INFO("no of times tests failed = %d", res);
+    //test_wf_enq_deq();
     //test_local_pool();
     //test_pools_single_thread();
     //test_pools_multi_thread();
