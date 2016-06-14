@@ -41,6 +41,7 @@
 								<option id="gnu.c.compiler.option.misc.pic.20542234" name="Position Independent Code (-fPIC)" superClass="gnu.c.compiler.option.misc.pic" useByScannerDiscovery="false" value="true" valueType="boolean"/>
 								<option id="gnu.c.compiler.option.preprocessor.def.symbols.1921709188" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" useByScannerDiscovery="false" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="LOGGING_LEVEL=LOG_LEVEL_DEBUG"/>
+									<listOptionValue builtIn="false" value="DEBUG"/>
 									<listOptionValue builtIn="false" value="DEBUG_QUEUE"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1124646222" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>

@@ -163,6 +163,7 @@ typedef struct test_data_wf_queue {
 	wf_queue_head_t *q;
 	wf_queue_op_head_t *op_desc;
 	dummy_data_wf_queue_t* dummy_data;
+    wf_queue_node_t** queue_data;
 } test_data_wf_queue_t;
 
 pthread_barrier_t barr,barr1;
@@ -290,29 +291,171 @@ void test_wf_queue() {
 	LOG_EPILOG();
 }
 
-void test_wf_dequeue() {
+void* test_func_wf_dequeue(void* thread_data) {
     LOG_PROLOG();
 
-    wf_queue_head_t *q = create_wf_queue(create_wf_queue_node());
-    wf_queue_op_head_t *op_desc = create_queue_op_desc(1);
+    test_data_wf_queue_t* data = (test_data_wf_queue_t*)thread_data;
+    pthread_barrier_wait(&barr);
+
     int i = 0;
-	for (i = 0; i < 50; ++i) {
-    	wf_enqueue(q, create_wf_queue_node(), op_desc, 0);
-    	wf_enqueue(q, create_wf_queue_node(), op_desc, 0);
-		//wf_dequeue(q, op_desc, 0);
+    while(1) {
+        data->queue_data[i] = wf_dequeue(data->q, data->op_desc, data->thread_id);
+        if (data->queue_data[i] == NULL) {
+	    return NULL;
+	}
+	i++;
+    }
+    return NULL;
+}
+
+
+int check_queue(wf_queue_head_t *q, int total_ops) {
+    wf_queue_node_t* head = GET_PTR_FROM_TAGGEDPTR(q->head, wf_queue_node_t);
+    wf_queue_node_t* tail = GET_PTR_FROM_TAGGEDPTR(q->tail, wf_queue_node_t);
+    int i = 0;
+    int error = 0;
+    while (head != tail) {
+	dummy_data_wf_queue_t* val = (dummy_data_wf_queue_t*)list_entry(head, dummy_data_wf_queue_t, node);
+	if (head->sanityData != i) {
+	    LOG_WARN("head->index = %d, i = %d", head->sanityData, i);
+	    error = 1;
+	}
+	if (val->data != i) {
+	    LOG_ERROR("val->data = %d, i = %d", val->data, i);
+	    error = 1;
+	}
+	i++;
+	head = GET_PTR_FROM_TAGGEDPTR(head->next, wf_queue_node_t);
+    }
+    if (i != total_ops) {
+	    error = 1;
+    }
+    return error;
+}
+
+void test_wf_dequeue() {
+	LOG_PROLOG();
+
+	const int COUNT_THREADS = 20;
+	const int COUNT_OPS = 30000;
+	const int TEST_ITEMS = COUNT_THREADS * COUNT_OPS + 1;
+
+	dummy_data_wf_queue_t *dummy_data = (dummy_data_wf_queue_t*) malloc(
+			sizeof(dummy_data_wf_queue_t) * (COUNT_THREADS * COUNT_OPS + 1));
+
+	LOG_INFO("dummy_data = %p", dummy_data);
+	int i = 0;
+	for (i = 0; i < (COUNT_THREADS * COUNT_OPS + 1); ++i) {
+		dummy_data[i].data = i;
+		init_wf_queue_node(&(dummy_data[i].node));
+#ifdef DEBUG
+		dummy_data[i].node.sanityData = i;
+#endif
 	}
 
-	/*wf_queue_node_t *x = q->head->ref;
-	i=0;
+	wf_queue_head_t *q = create_wf_queue(&(dummy_data[0].node));
+	wf_queue_op_head_t *op_desc = create_queue_op_desc(COUNT_THREADS);
+	pthread_t threads[COUNT_THREADS];
+
+	for (i = 1; i < COUNT_THREADS * COUNT_OPS + 1; i++) {
+		wf_enqueue(q, &(dummy_data[i].node), op_desc, 0);
+	}
+
+	LOG_INFO("finished enqueue");
+	int res = check_queue(q, COUNT_THREADS * COUNT_OPS);
+	if (res) {
+		LOG_ERROR("queue is not correctly made");
+		assert(res == 0);
+	}
+	LOG_INFO("queue is correctly made by enqueue : %d", res);
+
+	pthread_barrier_init(&barr, NULL, COUNT_THREADS);
+	test_data_wf_queue_t thread_data[COUNT_THREADS];
+	for (i = 0; i < COUNT_THREADS; i++) {
+		thread_data[i].thread_id = i;
+		thread_data[i].q = q;
+		thread_data[i].op_desc = op_desc;
+		thread_data[i].queue_data = (wf_queue_node_t**) malloc(
+				sizeof(wf_queue_node_t*) * (COUNT_THREADS * COUNT_OPS + 1));
+		LOG_INFO("Creating thread %d", i);
+		pthread_create(threads + i, NULL, test_func_wf_dequeue,
+				thread_data + i);
+	}
+
+	for (i = 0; i < COUNT_THREADS; ++i) {
+		pthread_join(threads[i], NULL);
+	}
+
+	LOG_INFO("*****Veryfying*****");
+
+	assert(
+			(q->head == q->tail) && (GET_PTR_FROM_TAGGEDPTR(q->head, wf_queue_node_t)->next == NULL));
+
+#ifdef DEBUG
+	assert (GET_PTR_FROM_TAGGEDPTR(q->head, wf_queue_node_t)->sanityData == (TEST_ITEMS - 1));
+#endif
+
+	int final_tail_tag = GET_TAG_FROM_TAGGEDPTR(q->tail);
+	int final_head_tag = GET_TAG_FROM_TAGGEDPTR(q->head);
+	LOG_INFO("final tail stamp = %d, final head stamp = %d", final_tail_tag,
+			final_head_tag);
+	assert(final_tail_tag == final_head_tag);
+
+	wf_queue_node_t* x;
+	int j = 0;
+	int duplicate_cnt = 0;
 	int total = 0;
-	while (x != NULL) {
-		LOG_INFO("Queue item %d", i++);
-		x = x->next->ref;
-		total++;
+	int* verify = (int*) malloc(sizeof(int) * COUNT_THREADS * COUNT_OPS);
+	memset(verify, 0, sizeof(verify));
+	int* duplicate_id = (int*) malloc(sizeof(int) * COUNT_THREADS * COUNT_OPS);
+
+	int ullu = 0;
+	for (i = 0; i < COUNT_THREADS; i++) {
+		j = 0;
+		while ((x = thread_data[i].queue_data[j]) != NULL) {
+			x = GET_PTR_FROM_TAGGEDPTR(x, wf_queue_node_t);
+			dummy_data_wf_queue_t* val = (dummy_data_wf_queue_t*) list_entry(x,
+					dummy_data_wf_queue_t, node);
+#ifdef DEBUG
+			if (x->sanityData != val->data) {
+				ullu++;
+			}
+
+			//assert(x->index == val->data);
+#endif
+			verify[val->data]++;
+
+			if (verify[val->data] > 1) {
+				LOG_WARN("Duplicate = %d. Thread1 = %d, thread2 = %d",
+						val->data, duplicate_id[val->data], i);
+			} else {
+				duplicate_id[val->data] = i;
+			}
+			total++;
+			j++;
+		}
+//	LOG_INFO("thread %d dequeued %d items", i, j);
 	}
 
-    LOG_INFO("Total number of items in queue = %d", total);*/
+	int count_miss = 0;
+	int count_found = 0;
+	for (i = 0; i < COUNT_THREADS * COUNT_OPS; ++i) {
+		if (verify[i] == 0) {
+			LOG_WARN("Missed Item = %d", i);
+			count_miss++;
+		} else if (verify[i] == 1) {
+			//LOG_INFO("%d dequeued by %d", i, duplicate_id[i]);
+			count_found++;
+		} else {
+			duplicate_cnt++;
+			//		LOG_WARN("Found %d duplicates of %d\n", verify[i], i);
+		}
+	}
 
+	printf("Number of missed items = %d\n", count_miss);
+	printf("Number of duplicates = %d\n", duplicate_cnt);
+	printf("Total number of items dequeued = %d\n", total);
+	printf("Corrupted nodes = %d\n", ullu);
 	LOG_EPILOG();
 }
 
@@ -600,8 +743,8 @@ int main() {
     LOG_INIT_FILE();
 
     //test_page();
-    test_wf_queue();
-    //test_wf_dequeue();
+    //test_wf_queue();
+    test_wf_dequeue();
     //test_local_pool();
     //test_pools_single_thread();
     //test_pools_multi_thread();
