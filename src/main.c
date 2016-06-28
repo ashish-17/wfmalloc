@@ -932,14 +932,14 @@ int main() {
     LOG_INIT_FILE();
 
     //test_page();
-    //test_wf_queue();
+    test_wf_queue();
     //test_wf_dequeue();
-    int res = 0;
-    for (unsigned i = 10; i < 33; i++) {
-	res += test_wf_dequeue(i);
-    }
-    LOG_INFO("no of times tests failed = %d", res);
-    test_wf_enq_deq();
+    //int res = 0;
+    //for (unsigned i = 10; i < 33; i++) {
+	//res += test_wf_dequeue(i);
+    //}
+    //LOG_INFO("no of times tests failed = %d", res);
+    //test_wf_enq_deq();
     //test_local_pool();
     //test_pools_single_thread();
     //test_pools_multi_thread();

@@ -32,6 +32,7 @@ typedef struct wf_queues_op_desc {
 	uint8_t pending;
 	uint8_t enqueue;
 	wf_queue_node_t * node;
+	wf_queue_node_t * last; // this points to last node of the list that is to be enqueued during bulk enqueue
 	wf_queue_head_t* queue;
 } wf_queue_op_desc_t;
 
