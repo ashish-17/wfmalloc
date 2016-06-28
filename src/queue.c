@@ -224,7 +224,9 @@ void help_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 		uint32_t old_stamp = GET_TAG_FROM_TAGGEDPTR(next_stamped_ref);
 		uint32_t new_stamp = get_next_stamp(old_stamp);
 		if (last_stamped_ref == queue->tail) {
-			if (next_stamped_ref == NULL) {
+			// this was initially just next_stamped_ref == NULL
+			// changed when writing bulk enqueue
+			if (GET_PTR_FROM_TAGGEDPTR(next_stamped_ref, wf_queue_node_t) == NULL) {
 				if (is_pending(op_desc, phase, thread_to_help)) {
 					wf_queue_node_t* new_stamped_ref = GET_TAGGED_PTR(new_node, wf_queue_node_t, new_stamp);
 					if (atomic_compare_exchange_strong(&(GET_PTR_FROM_TAGGEDPTR(last_stamped_ref, wf_queue_node_t)->next), &next_stamped_ref, new_stamped_ref)) {
@@ -254,6 +256,11 @@ void help_finish_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 	if (GET_PTR_FROM_TAGGEDPTR(next_stamped_ref, wf_queue_node_t) != NULL) {
 		int enq_tid = GET_PTR_FROM_TAGGEDPTR(next_stamped_ref, wf_queue_node_t)->enq_tid;
 
+		#ifdef DEBUG
+		if (enq_tid == -1) {
+		    LOG_INFO("enq_tid == -1");
+		}
+		#endif
 		wf_queue_op_desc_t* old_op_desc_stamped_ref = *(op_desc->ops + enq_tid);
 		wf_queue_op_desc_t* old_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(old_op_desc_stamped_ref, wf_queue_op_desc_t);
 		wf_queue_node_t *new_tail_stamped_ref = old_op_desc_ref->last;
