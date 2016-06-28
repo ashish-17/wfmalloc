@@ -748,7 +748,7 @@ void test_wf_enq_deq() {
 	int j;
 	int res = 0;
 	unsigned no_ops[] = {10, 50000, 500000};
-	// unsigned no_ops[] = {500000};
+	// unsigned no_ops[] = {10};
 	for (j = 0; j < sizeof(no_ops)/sizeof(int); j++) {
 		for(i = 2; i < 33; i+=5) {
 			LOG_INFO("starting the test with %d threads and %u operations",i,no_ops[j]);
@@ -933,13 +933,13 @@ int main() {
 
     //test_page();
     //test_wf_queue();
-    //test_wf_dequeue();
     int res = 0;
     for (unsigned i = 10; i < 33; i++) {
 	res += test_wf_dequeue(i);
     }
+    
     LOG_INFO("no of times tests failed = %d", res);
-    test_wf_enq_deq();
+    //test_wf_enq_deq();
     //test_local_pool();
     //test_pools_single_thread();
     //test_pools_multi_thread();
