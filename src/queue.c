@@ -317,7 +317,7 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 		wf_queue_node_t *next = GET_PTR_FROM_TAGGEDPTR(next_stamped_ref, wf_queue_node_t);
 
 		if (first_stamped_ref == queue->head) {
-			if (first == last) {
+		//	if (first == last) {
 				if (next == NULL) {
 					wf_queue_op_desc_t* old_op_desc_stamped_ref = *(op_desc->ops + thread_to_help);
 					wf_queue_op_desc_t* old_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(old_op_desc_stamped_ref, wf_queue_op_desc_t);
@@ -339,9 +339,9 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 							*(op_desc->ops_reserve + thread_id) = old_op_desc_ref;
 						}
 					}
-				} else {
-					help_finish_enq(queue, op_desc, thread_id);
-				}
+		//		} else {
+		//			help_finish_enq(queue, op_desc, thread_id);
+		//		}
 			} else {
 				wf_queue_op_desc_t* old_op_desc_stamped_ref = *(op_desc->ops + thread_to_help);
 				wf_queue_op_desc_t* old_op_desc_ref = GET_PTR_FROM_TAGGEDPTR(old_op_desc_stamped_ref, wf_queue_op_desc_t);
