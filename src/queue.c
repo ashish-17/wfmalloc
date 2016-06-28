@@ -110,7 +110,7 @@ void wf_enqueue(wf_queue_head_t *q, wf_queue_node_t* node, wf_queue_op_head_t* o
 	new_op_desc_ref->phase = phase;
 
 	node->enq_tid = thread_id;
-	node->next = NULL;
+	//node->next = NULL;
 
 	new_op_desc_ref->node = node;
 	new_op_desc_ref->last = compute_last(node);
