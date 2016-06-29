@@ -102,7 +102,6 @@ void wf_enqueue(wf_queue_head_t *q, wf_queue_node_t* node, wf_queue_op_head_t* o
 	new_op_desc_ref->phase = phase;
 
 	node->enq_tid = thread_id;
-	node->next = NULL;
 
 	new_op_desc_ref->node = node;
 	new_op_desc_ref->last = compute_last(node);
@@ -132,6 +131,7 @@ wf_queue_node_t* wf_dequeue(wf_queue_head_t *q, wf_queue_op_head_t* op_desc, int
 
 	new_op_desc_ref->phase = phase;
 	new_op_desc_ref->node = NULL;
+	new_op_desc_ref->last = NULL;
 	new_op_desc_ref->pending = 1;
 	new_op_desc_ref->enqueue = 0;
 	new_op_desc_ref->queue = q;
@@ -321,6 +321,7 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 						new_op_desc_ref->pending = false;
 						new_op_desc_ref->enqueue = false;
 						new_op_desc_ref->node = NULL;
+						new_op_desc_ref->last = NULL;
 						new_op_desc_ref->queue = queue;
 						if (atomic_compare_exchange_strong((op_desc->ops + thread_to_help), &old_op_desc_stamped_ref, new_op_desc_stamped_ref)) {
 							*(op_desc->ops_reserve + thread_id) = old_op_desc_ref;
@@ -347,6 +348,7 @@ void help_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 						new_op_desc_ref->pending = true;
 						new_op_desc_ref->enqueue = false;
 						new_op_desc_ref->node = first_stamped_ref;
+						new_op_desc_ref->last = NULL;
 						new_op_desc_ref->queue = queue;
 
 						if (atomic_compare_exchange_strong((op_desc->ops + thread_to_help), &old_op_desc_stamped_ref, new_op_desc_stamped_ref)) {
@@ -390,6 +392,7 @@ void help_finish_deq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int th
 			new_op_desc_ref->pending = false;
 			new_op_desc_ref->enqueue = false;
 			new_op_desc_ref->node = old_op_desc_ref->node;
+			new_op_desc_ref->last = NULL;
 			new_op_desc_ref->queue = queue;
 
 			if (old_op_desc_ref->pending && atomic_compare_exchange_strong((op_desc->ops + deq_id), &old_op_desc_stamped_ref, new_op_desc_stamped_ref)) {

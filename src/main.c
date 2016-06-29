@@ -927,19 +927,259 @@ int simple_test(unsigned count_threads, unsigned number_of_nodes) {
 
 	LOG_EPILOG();
 }
+wf_queue_node_t* create_linked_list(int num_ops, int thread_id) {
+	wf_queue_node_t *linked_list_head;
+	wf_queue_node_t *linked_list_tail;
+
+	wf_queue_node_t *node = (wf_queue_node_t*) malloc(sizeof(wf_queue_node_t));
+	init_wf_queue_node(node);
+	node->sanityData = thread_id;
+	linked_list_head = node;
+	linked_list_tail = node;
+
+	while(num_ops > 1) {
+		node = (wf_queue_node_t*) malloc(sizeof(wf_queue_node_t));
+		init_wf_queue_node(node);
+		node->sanityData = thread_id;
+		linked_list_tail->next = node;
+		linked_list_tail = node;
+		num_ops--;
+	}
+
+	return linked_list_head;
+}
+
+void* test_func_wf_enqueue_multiple(void* thread_data) {
+	LOG_PROLOG();
+
+	test_data_wf_queue_t* data = (test_data_wf_queue_t*)thread_data;
+	pthread_barrier_wait(&barr);
+
+	int total_num_ops = data->count_enque_ops;
+	int num_ops;
+	while(total_num_ops != 0) {
+		num_ops = randomNumber(1,5);
+		if (num_ops > total_num_ops) {
+			num_ops = 1;
+		}
+		wf_queue_node_t *node = create_linked_list(num_ops, data->thread_id);
+		wf_enqueue(data->q, node, data->op_desc, data->thread_id);
+		total_num_ops -= num_ops;
+	}
+
+	LOG_EPILOG();
+	return NULL;
+}
+
+int test_wf_enqueue_multiple(unsigned COUNT_THREADS) {
+	LOG_PROLOG();
+
+	const int COUNT_OPS = 500000;
+
+	wf_queue_node_t *init_node = (wf_queue_node_t*) malloc(sizeof(wf_queue_node_t));
+	init_wf_queue_node(init_node);
+	init_node->sanityData = 0;
+	wf_queue_head_t *q = create_wf_queue(init_node);
+	wf_queue_op_head_t *op_desc = create_queue_op_desc(COUNT_THREADS);
+	pthread_t threads[COUNT_THREADS];
+
+	pthread_barrier_init(&barr, NULL, COUNT_THREADS);
+	test_data_wf_queue_t thread_data[COUNT_THREADS];
+	int i;
+
+	for (i = 0; i < COUNT_THREADS; i++) {
+		thread_data[i].thread_id = i;
+		thread_data[i].q = q;
+		thread_data[i].op_desc = op_desc;
+		thread_data[i].count_enque_ops = COUNT_OPS;
+		LOG_INFO("Creating thread %d", i);
+		pthread_create(threads + i, NULL, test_func_wf_enqueue_multiple,
+				thread_data + i);
+	}
+
+	for (i = 0; i < COUNT_THREADS; ++i) {
+		pthread_join(threads[i], NULL);
+	}
+
+	LOG_INFO("*****Veryfying*****");
+	// Verify that the queue has as COUNT_THREADS * COUNT_OPS + 1 nodes in total
+	// such that each thread enqueued COUNT_OPS nodes
+
+	int res = 0;
+
+	wf_queue_node_t* node;
+	int nodes_each_thread[COUNT_THREADS];
+	for (i = 0; i < COUNT_THREADS; i++) {
+		nodes_each_thread[i] = 0;
+	}
+
+	node = wf_dequeue(q, op_desc, 0);
+	while(node != NULL) {
+		nodes_each_thread[node->sanityData]++;
+		free(node);
+		node = wf_dequeue(q, op_desc, 0);
+	}
+
+	// accounting for the sentinel node
+	nodes_each_thread[0]--;
+	// accounting for the left over node in the queue
+	node = GET_PTR_FROM_TAGGEDPTR(q->head, wf_queue_node_t);
+	nodes_each_thread[node->sanityData]++;
+	free(node);
+
+	for (i = 0; i < COUNT_THREADS; i++) {
+		if (nodes_each_thread[i] != COUNT_OPS) {
+			LOG_INFO("thread %d enqueued nodes = %d", i, nodes_each_thread[i]);
+			res = 1;
+		}
+	}
+
+	LOG_EPILOG();
+	return res;
+}
+
+
+void* test_func_wf_enq_deq_multiple(void* thread_data) {
+	LOG_PROLOG();
+
+	test_data_wf_queue_t* data = (test_data_wf_queue_t*)thread_data;
+	pthread_barrier_wait(&barr);
+
+	int total_num_ops = data->count_enque_ops;
+	int num_ops;
+	int i = 0;
+
+	while(total_num_ops != 0) {
+		num_ops = randomNumber(1,5);
+		if (num_ops > total_num_ops) {
+			num_ops = 1;
+		}
+		wf_queue_node_t *node = create_linked_list(num_ops, data->thread_id);
+		wf_enqueue(data->q, node, data->op_desc, data->thread_id);
+		total_num_ops -= num_ops;
+
+		data->queue_data[i] = wf_dequeue(data->q, data->op_desc, data->thread_id);
+		i++;
+	}
+
+	data->queue_data[i] = NULL;
+	LOG_EPILOG();
+	return NULL;
+}
+
+
+int test_wf_enq_deq_multiple(unsigned COUNT_THREADS) {
+	LOG_PROLOG();
+
+	const int COUNT_OPS = 500000;
+
+	wf_queue_node_t *init_node = (wf_queue_node_t*) malloc(sizeof(wf_queue_node_t));
+	init_wf_queue_node(init_node);
+	init_node->sanityData = 0;
+	wf_queue_head_t *q = create_wf_queue(init_node);
+	wf_queue_op_head_t *op_desc = create_queue_op_desc(COUNT_THREADS);
+	pthread_t threads[COUNT_THREADS];
+
+	pthread_barrier_init(&barr, NULL, COUNT_THREADS);
+	test_data_wf_queue_t thread_data[COUNT_THREADS];
+	int i,j;
+
+	for (i = 0; i < COUNT_THREADS; i++) {
+		thread_data[i].thread_id = i;
+		thread_data[i].q = q;
+		thread_data[i].op_desc = op_desc;
+		thread_data[i].count_enque_ops = COUNT_OPS;
+		thread_data[i].queue_data = (wf_queue_node_t**) malloc(sizeof(wf_queue_node_t*) * (COUNT_OPS));
+		LOG_INFO("Creating thread %d", i);
+		pthread_create(threads + i, NULL, test_func_wf_enq_deq_multiple,
+				thread_data + i);
+	}
+
+	for (i = 0; i < COUNT_THREADS; ++i) {
+		pthread_join(threads[i], NULL);
+	}
+
+	LOG_INFO("*****Veryfying*****");
+	// Verify that the queue has as COUNT_THREADS * COUNT_OPS + 1 nodes in total
+	// such that each thread enqueued COUNT_OPS nodes
+
+	int res = 0;
+
+	wf_queue_node_t* node;
+	int nodes_each_thread[COUNT_THREADS];
+	for (i = 0; i < COUNT_THREADS; i++) {
+		nodes_each_thread[i] = 0;
+	}
+
+
+	for (i = 0; i < COUNT_THREADS; i++) {
+	    j = 0;
+	    while((node = thread_data[i].queue_data[j]) != NULL) {
+		nodes_each_thread[node->sanityData]++;
+		free(node);
+		j++;
+	    }
+	    //LOG_INFO("thread %d dequeued %d items", i, j);
+	}
+
+	node = wf_dequeue(q, op_desc, 0);
+	while(node != NULL) {
+		nodes_each_thread[node->sanityData]++;
+		free(node);
+		node = wf_dequeue(q, op_desc, 0);
+	}
+
+	// accounting for the sentinel node
+	nodes_each_thread[0]--;
+	// accounting for the left over node in the queue
+	node = GET_PTR_FROM_TAGGEDPTR(q->head, wf_queue_node_t);
+	nodes_each_thread[node->sanityData]++;
+	free(node);
+
+	for (i = 0; i < COUNT_THREADS; i++) {
+		if (nodes_each_thread[i] != COUNT_OPS) {
+			LOG_INFO("thread %d enqueued nodes = %d", i, nodes_each_thread[i]);
+			res = 1;
+		}
+		//LOG_INFO("thread%d enqueued nodes = %d", i, nodes_each_thread[i]);
+	}
+
+	// Cleaning
+	for (i = 0; i < COUNT_THREADS; i++) {
+	    free(thread_data[i].queue_data);
+	}
+
+	LOG_EPILOG();
+
+	return res;
+}
 int main() {
     LOG_INIT_CONSOLE();
     LOG_INIT_FILE();
 
     //test_page();
-    test_wf_queue();
+    //test_wf_queue();
     //test_wf_dequeue();
-    //int res = 0;
-    //for (unsigned i = 10; i < 33; i++) {
-	//res += test_wf_dequeue(i);
-    //}
-    //LOG_INFO("no of times tests failed = %d", res);
-    //test_wf_enq_deq();
+    int res = 0;
+    /*for (unsigned i = 10; i < 33; i++) {
+	res += test_wf_dequeue(i);
+    }
+    LOG_INFO("no of times tests failed = %d", res);
+    test_wf_enq_deq();*/
+
+	/*res = 0;
+	for (unsigned i = 10; i < 25; i++) {
+		LOG_INFO("\n\n Starting test with %d threads", i);
+		res += test_wf_enqueue_multiple(i);
+	}
+	LOG_INFO("no of times tests failed = %d", res);*/
+
+	res = 0;
+	for (unsigned i = 15; i < 25; i++) {
+		LOG_INFO("\n\n Starting test with %d threads", i);
+		res += test_wf_enq_deq_multiple(i);
+	}
+	LOG_INFO("no of times tests failed = %d", res);
     //test_local_pool();
     //test_pools_single_thread();
     //test_pools_multi_thread();
