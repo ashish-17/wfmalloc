@@ -13,59 +13,59 @@
 #include <unistd.h>
 
 void test_page() {
-    LOG_PROLOG();
+	LOG_PROLOG();
 
-    page_header_t header;
-    LOG_INFO("Size of header = %d", sizeof(header));
-    LOG_INFO("Size of bitmap = %d", sizeof(header.block_flags));
+	page_header_t header;
+	LOG_INFO("Size of header = %d", sizeof(header));
+	LOG_INFO("Size of bitmap = %d", sizeof(header.block_flags));
 
-    LOG_INFO("Address header = %u", &header);
-    LOG_INFO("Offset block size = %u", OFFSETOF(page_header_t, block_size));
-    LOG_INFO("Offset max blocks = %u", OFFSETOF(page_header_t, max_blocks));
-    LOG_INFO("Offset bitmap = %u", OFFSETOF(page_header_t, block_flags));
+	LOG_INFO("Address header = %u", &header);
+	LOG_INFO("Offset block size = %u", OFFSETOF(page_header_t, block_size));
+	LOG_INFO("Offset max blocks = %u", OFFSETOF(page_header_t, max_blocks));
+	LOG_INFO("Offset bitmap = %u", OFFSETOF(page_header_t, block_flags));
 
-    page_t *ptr = create_page(4);
-    LOG_INFO("test page block size = %d", ptr->header.block_size);
-    LOG_INFO("test page num blocks = %d", ptr->header.max_blocks);
-    LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
-    LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
+	page_t *ptr = create_page(4);
+	LOG_INFO("test page block size = %d", ptr->header.block_size);
+	LOG_INFO("test page num blocks = %d", ptr->header.max_blocks);
+	LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
+	LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
 
-    void* blk1 = malloc_block(ptr);
-    LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
-    LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
-    void* blk2 = malloc_block(ptr);
-    LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
-    LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
-    void* blk3 = malloc_block(ptr);
-    LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
-    LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
-    void* blk4 = malloc_block(ptr);
-    LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
-    LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
+	void* blk1 = malloc_block(ptr);
+	LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
+	LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
+	void* blk2 = malloc_block(ptr);
+	LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
+	LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
+	void* blk3 = malloc_block(ptr);
+	LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
+	LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
+	void* blk4 = malloc_block(ptr);
+	LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
+	LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
 
-    free_block(blk3);
-    LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
-    LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
-    free_block(blk4);
-    LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
-    LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
-    free_block(blk2);
-    LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
-    LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
-    free_block(blk1);
-    LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
-    LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
+	free_block(blk3);
+	LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
+	LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
+	free_block(blk4);
+	LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
+	LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
+	free_block(blk2);
+	LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
+	LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
+	free_block(blk1);
+	LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
+	LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
 
-    LOG_EPILOG();
+	LOG_EPILOG();
 }
 
 void test_local_pool() {
-    LOG_PROLOG();
+	LOG_PROLOG();
 
-    local_pool_t* pool = create_local_pool(2);
-    local_pool_stats(pool);
+	local_pool_t* pool = create_local_pool(2);
+	local_pool_stats(pool);
 
-    LOG_EPILOG();
+	LOG_EPILOG();
 }
 
 typedef struct dummy_data_pools {
@@ -91,8 +91,8 @@ void* test_pools(void* data) {
 }
 
 void test_pools_multi_thread() {
-    const int COUNT_THREADS = 4;
-    const int MALLOC_OPS = 309*2;
+	const int COUNT_THREADS = 4;
+	const int MALLOC_OPS = 309*2;
 
 	local_pool_t* l_pool = create_local_pool(COUNT_THREADS);
 	shared_pool_t* s_pool = create_shared_pool(COUNT_THREADS);
@@ -115,8 +115,8 @@ void test_pools_multi_thread() {
 }
 
 void test_pools_single_thread() {
-    LOG_PROLOG();
-    const int COUNT_THREADS = 1;
+	LOG_PROLOG();
+	const int COUNT_THREADS = 1;
 
 	local_pool_t* l_pool = create_local_pool(COUNT_THREADS);
 	shared_pool_t* s_pool = create_shared_pool(COUNT_THREADS);
@@ -164,13 +164,13 @@ typedef struct test_data_wf_queue {
 	wf_queue_head_t *q;
 	wf_queue_op_head_t *op_desc;
 	dummy_data_wf_queue_t* dummy_data;
-    wf_queue_node_t** queue_data;
+	wf_queue_node_t** queue_data;
 } test_data_wf_queue_t;
 
 pthread_barrier_t barr,barr1;
 
 void* test_func_wf_queue(void* thread_data) {
-    LOG_PROLOG();
+	LOG_PROLOG();
 
 	test_data_wf_queue_t* data = (test_data_wf_queue_t*)thread_data;
 
@@ -207,131 +207,131 @@ void* test_func_wf_queue(void* thread_data) {
 }
 
 void test_wf_queue() {
-    LOG_PROLOG();
+	LOG_PROLOG();
 
-    const int COUNT_THREADS = 10;
-    const int COUNT_ENQUEUE_OPS = 900000;
-    const int COUNT_DEQUEUE_OPS = 900000;
+	const int COUNT_THREADS = 10;
+	const int COUNT_ENQUEUE_OPS = 900000;
+	const int COUNT_DEQUEUE_OPS = 900000;
 
-    // Result = 1 + COUNT_THREADS*COUNT_ENQUEUE_OPS - COUNT_THREADS*COUNT_DeQUEUE_OPS
+	// Result = 1 + COUNT_THREADS*COUNT_ENQUEUE_OPS - COUNT_THREADS*COUNT_DeQUEUE_OPS
 
-    dummy_data_wf_queue_t *dummy_data = (dummy_data_wf_queue_t*) malloc(sizeof(dummy_data_wf_queue_t) * (COUNT_THREADS*COUNT_ENQUEUE_OPS + 1));
+	dummy_data_wf_queue_t *dummy_data = (dummy_data_wf_queue_t*) malloc(sizeof(dummy_data_wf_queue_t) * (COUNT_THREADS*COUNT_ENQUEUE_OPS + 1));
 
-    int i = 0;
-    for (i = 0; i < (COUNT_THREADS*COUNT_ENQUEUE_OPS + 1); ++i) {
-    	dummy_data[i].data = i;
-    	init_wf_queue_node(&(dummy_data[i].node));
-    	dummy_data[i].node.sanityData = i;
-    }
+	int i = 0;
+	for (i = 0; i < (COUNT_THREADS*COUNT_ENQUEUE_OPS + 1); ++i) {
+		dummy_data[i].data = i;
+		init_wf_queue_node(&(dummy_data[i].node));
+		dummy_data[i].node.sanityData = i;
+	}
 
-    wf_queue_head_t *q = create_wf_queue(&(dummy_data[0].node));
-    wf_queue_op_head_t *op_desc = create_queue_op_desc(COUNT_THREADS);
-    pthread_t threads[COUNT_THREADS];
-    pthread_barrier_init(&barr, NULL, COUNT_THREADS);
-    pthread_barrier_init(&barr1, NULL, COUNT_THREADS);
+	wf_queue_head_t *q = create_wf_queue(&(dummy_data[0].node));
+	wf_queue_op_head_t *op_desc = create_queue_op_desc(COUNT_THREADS);
+	pthread_t threads[COUNT_THREADS];
+	pthread_barrier_init(&barr, NULL, COUNT_THREADS);
+	pthread_barrier_init(&barr1, NULL, COUNT_THREADS);
 
-    test_data_wf_queue_t thread_data[COUNT_THREADS];
+	test_data_wf_queue_t thread_data[COUNT_THREADS];
 
-    for (i = 0; i < COUNT_THREADS; ++i) {
-    	thread_data[i].thread_id = i;
-    	thread_data[i].count_enque_ops = COUNT_ENQUEUE_OPS;
-    	thread_data[i].count_deque_ops = COUNT_DEQUEUE_OPS;
-    	thread_data[i].q = q;
-    	thread_data[i].op_desc = op_desc;
-    	thread_data[i].dummy_data = dummy_data + i*COUNT_ENQUEUE_OPS+1;
+	for (i = 0; i < COUNT_THREADS; ++i) {
+		thread_data[i].thread_id = i;
+		thread_data[i].count_enque_ops = COUNT_ENQUEUE_OPS;
+		thread_data[i].count_deque_ops = COUNT_DEQUEUE_OPS;
+		thread_data[i].q = q;
+		thread_data[i].op_desc = op_desc;
+		thread_data[i].dummy_data = dummy_data + i*COUNT_ENQUEUE_OPS+1;
 
-    	LOG_INFO("Creating thread %d", i);
-    	pthread_create(threads + i, NULL, test_func_wf_queue, thread_data+i);
-    }
+		LOG_INFO("Creating thread %d", i);
+		pthread_create(threads + i, NULL, test_func_wf_queue, thread_data+i);
+	}
 
-    for (i = 0; i < COUNT_THREADS; ++i) {
-    	pthread_join(threads[i], NULL);
-    }
+	for (i = 0; i < COUNT_THREADS; ++i) {
+		pthread_join(threads[i], NULL);
+	}
 
-    int *verify = (int*)malloc(sizeof(int) * (COUNT_THREADS*(COUNT_ENQUEUE_OPS) + 1));
-    memset(verify, 0, sizeof(int) * (COUNT_THREADS*(COUNT_ENQUEUE_OPS) + 1));
+	int *verify = (int*)malloc(sizeof(int) * (COUNT_THREADS*(COUNT_ENQUEUE_OPS) + 1));
+	memset(verify, 0, sizeof(int) * (COUNT_THREADS*(COUNT_ENQUEUE_OPS) + 1));
 
-    wf_queue_node_t *x = GET_PTR_FROM_TAGGEDPTR(q->head, wf_queue_node_t);
-    int total=0;
-    int sanityFails = 0;
-    while(x!=NULL){
-    	dummy_data_wf_queue_t* val = (dummy_data_wf_queue_t*)list_entry(x, dummy_data_wf_queue_t, node);
-    	if (val->data > (COUNT_THREADS*COUNT_ENQUEUE_OPS)) {
-    		LOG_WARN("Invalid value in node - %d", val->data);
-    	}
-    	else {
-        	if (verify[val->data] == 1) {
-        		LOG_WARN("Duplicate = %d", val->data);
-        	} else {
-        		verify[val->data] = 1;
-        	}
-    	}
+	wf_queue_node_t *x = GET_PTR_FROM_TAGGEDPTR(q->head, wf_queue_node_t);
+	int total=0;
+	int sanityFails = 0;
+	while(x!=NULL){
+		dummy_data_wf_queue_t* val = (dummy_data_wf_queue_t*)list_entry(x, dummy_data_wf_queue_t, node);
+		if (val->data > (COUNT_THREADS*COUNT_ENQUEUE_OPS)) {
+			LOG_WARN("Invalid value in node - %d", val->data);
+		}
+		else {
+			if (verify[val->data] == 1) {
+				LOG_WARN("Duplicate = %d", val->data);
+			} else {
+				verify[val->data] = 1;
+			}
+		}
 
-    	if (val->data != val->node.sanityData) {
-    		sanityFails++;
-    	}
-    	total++;
-    	x=GET_PTR_FROM_TAGGEDPTR(x->next, wf_queue_node_t);
-    }
+		if (val->data != val->node.sanityData) {
+			sanityFails++;
+		}
+		total++;
+		x=GET_PTR_FROM_TAGGEDPTR(x->next, wf_queue_node_t);
+	}
 
-    int count_miss = 0;
-    int count_found = 0;
-    for (i = 0; i < COUNT_THREADS*(COUNT_ENQUEUE_OPS)+1; ++i) {
+	int count_miss = 0;
+	int count_found = 0;
+	for (i = 0; i < COUNT_THREADS*(COUNT_ENQUEUE_OPS)+1; ++i) {
 		if (verify[i] == 1) {
 			count_found++;
 		} else {
 			count_miss++;
 		}
-    }
+	}
 
-    LOG_INFO("Number of missed items = %d", count_miss);
-    LOG_INFO("Number of sanity fails = %d", sanityFails);
-    LOG_INFO("Number of items enqueued = %d", count_found);
-    LOG_INFO("Total number of items in queue = %d", total);
+	LOG_INFO("Number of missed items = %d", count_miss);
+	LOG_INFO("Number of sanity fails = %d", sanityFails);
+	LOG_INFO("Number of items enqueued = %d", count_found);
+	LOG_INFO("Total number of items in queue = %d", total);
 
 	LOG_EPILOG();
 }
 
 void* test_func_wf_dequeue(void* thread_data) {
-    LOG_PROLOG();
+	LOG_PROLOG();
 
-    test_data_wf_queue_t* data = (test_data_wf_queue_t*)thread_data;
-    pthread_barrier_wait(&barr);
+	test_data_wf_queue_t* data = (test_data_wf_queue_t*)thread_data;
+	pthread_barrier_wait(&barr);
 
-    int i = 0;
-    while(1) {
-        data->queue_data[i] = wf_dequeue(data->q, data->op_desc, data->thread_id);
-        if (data->queue_data[i] == NULL) {
-	    return NULL;
+	int i = 0;
+	while(1) {
+		data->queue_data[i] = wf_dequeue(data->q, data->op_desc, data->thread_id);
+		if (data->queue_data[i] == NULL) {
+			return NULL;
+		}
+		i++;
 	}
-	i++;
-    }
-    return NULL;
+	return NULL;
 }
 
 
 int check_queue(wf_queue_head_t *q, int total_ops) {
-    wf_queue_node_t* head = GET_PTR_FROM_TAGGEDPTR(q->head, wf_queue_node_t);
-    wf_queue_node_t* tail = GET_PTR_FROM_TAGGEDPTR(q->tail, wf_queue_node_t);
-    int i = 0;
-    int error = 0;
-    while (head != tail) {
-	dummy_data_wf_queue_t* val = (dummy_data_wf_queue_t*)list_entry(head, dummy_data_wf_queue_t, node);
-	if (head->sanityData != i) {
-	    LOG_WARN("head->index = %d, i = %d", head->sanityData, i);
-	    error = 1;
+	wf_queue_node_t* head = GET_PTR_FROM_TAGGEDPTR(q->head, wf_queue_node_t);
+	wf_queue_node_t* tail = GET_PTR_FROM_TAGGEDPTR(q->tail, wf_queue_node_t);
+	int i = 0;
+	int error = 0;
+	while (head != tail) {
+		dummy_data_wf_queue_t* val = (dummy_data_wf_queue_t*)list_entry(head, dummy_data_wf_queue_t, node);
+		if (head->sanityData != i) {
+			LOG_WARN("head->index = %d, i = %d", head->sanityData, i);
+			error = 1;
+		}
+		if (val->data != i) {
+			LOG_ERROR("val->data = %d, i = %d", val->data, i);
+			error = 1;
+		}
+		i++;
+		head = GET_PTR_FROM_TAGGEDPTR(head->next, wf_queue_node_t);
 	}
-	if (val->data != i) {
-	    LOG_ERROR("val->data = %d, i = %d", val->data, i);
-	    error = 1;
+	if (i != total_ops) {
+		error = 1;
 	}
-	i++;
-	head = GET_PTR_FROM_TAGGEDPTR(head->next, wf_queue_node_t);
-    }
-    if (i != total_ops) {
-	    error = 1;
-    }
-    return error;
+	return error;
 }
 
 int test_wf_dequeue(unsigned COUNT_THREADS) {
@@ -434,7 +434,7 @@ int test_wf_dequeue(unsigned COUNT_THREADS) {
 			total++;
 			j++;
 		}
-//	LOG_INFO("thread %d dequeued %d items", i, j);
+		//	LOG_INFO("thread %d dequeued %d items", i, j);
 	}
 
 	int count_miss = 0;
@@ -458,27 +458,27 @@ int test_wf_dequeue(unsigned COUNT_THREADS) {
 	printf("Corrupted nodes = %d\n", ullu);
 	LOG_EPILOG();
 	if ((count_miss != 0) || (duplicate_cnt != 0))
-	    return 1;
+		return 1;
 	else return 0;
 }
 
 void* test_worker_wfmalloc(void* data) {
-    LOG_PROLOG();
+	LOG_PROLOG();
 
-    const int COUNT_MALLOC_OPS = 100;
-    int thread_id = *((int*)data);
-    int* sizes = malloc(sizeof(int) * COUNT_MALLOC_OPS);
-    int i = 0;
-    void** mem = malloc(sizeof(void*) * COUNT_MALLOC_OPS);
-    for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
-    	sizes[i] = (rand() % 100)+1;
-    	mem[i] = wfmalloc(sizes[i], thread_id);
+	const int COUNT_MALLOC_OPS = 100;
+	int thread_id = *((int*)data);
+	int* sizes = malloc(sizeof(int) * COUNT_MALLOC_OPS);
+	int i = 0;
+	void** mem = malloc(sizeof(void*) * COUNT_MALLOC_OPS);
+	for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
+		sizes[i] = (rand() % 100)+1;
+		mem[i] = wfmalloc(sizes[i], thread_id);
 
-    	/*mem_block_header_t *block_header = (mem_block_header_t*)((char*)mem[i] - sizeof(mem_block_header_t));
-    	page_t* page_ptr = (page_t*)((char*)block_header - block_header->byte_offset);
+		/*mem_block_header_t *block_header = (mem_block_header_t*)((char*)mem[i] - sizeof(mem_block_header_t));
+		  page_t* page_ptr = (page_t*)((char*)block_header - block_header->byte_offset);
 
-    	LOG_INFO("Requested - %d, Returned = %d", sizes[i], page_ptr->header.block_size);*/
-    }
+		  LOG_INFO("Requested - %d, Returned = %d", sizes[i], page_ptr->header.block_size);*/
+	}
 
 	for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
 		wffree(mem[i]);
@@ -489,20 +489,20 @@ void* test_worker_wfmalloc(void* data) {
 }
 
 void write_to_bytes(char* string, int n_bytes) {
-    LOG_PROLOG();
-    char start = 'a';
-    int i = 0;
-    for (i = 0; i < n_bytes; i++) {
-        string[i] = start;
-	start++;
-    }
-    LOG_EPILOG();
+	LOG_PROLOG();
+	char start = 'a';
+	int i = 0;
+	for (i = 0; i < n_bytes; i++) {
+		string[i] = start;
+		start++;
+	}
+	LOG_EPILOG();
 }
 
 void test_bytes(char* string, int n_bytes) {
 	LOG_PROLOG();
 	char start = 'a';
-    	int i = 0;
+	int i = 0;
 	for (i = 0; i < n_bytes; i++) {
 		assert(string[i] == start);
 		start++;
@@ -511,43 +511,43 @@ void test_bytes(char* string, int n_bytes) {
 }
 
 void test_wfmalloc() {
-    LOG_PROLOG();
+	LOG_PROLOG();
 
-    const int COUNT_THREADS = 10;
+	const int COUNT_THREADS = 10;
 
-    wfinit(COUNT_THREADS);
+	wfinit(COUNT_THREADS);
 
-    pthread_t threads[COUNT_THREADS];
-    int data[COUNT_THREADS];
+	pthread_t threads[COUNT_THREADS];
+	int data[COUNT_THREADS];
 
-    int i = 0;
-    for (i = 0; i < COUNT_THREADS; ++i) {
-    	data[i] = i;
-    	pthread_create(threads + i, NULL, test_worker_wfmalloc, data + i);
-    }
+	int i = 0;
+	for (i = 0; i < COUNT_THREADS; ++i) {
+		data[i] = i;
+		pthread_create(threads + i, NULL, test_worker_wfmalloc, data + i);
+	}
 
-    for (i = 0; i < COUNT_THREADS; ++i) {
-    	pthread_join(threads[i], NULL);
-    }
+	for (i = 0; i < COUNT_THREADS; ++i) {
+		pthread_join(threads[i], NULL);
+	}
 
 	LOG_EPILOG();
 }
 
 void* test_worker_wfmalloc_bug(void* data) {
-    LOG_PROLOG();
+	LOG_PROLOG();
 
-    const int COUNT_MALLOC_OPS = 500000;
-    int thread_id = *((int*)data);
-    int* sizes = malloc(sizeof(int) * COUNT_MALLOC_OPS);
-    int i = 0;
-    char* mem[COUNT_MALLOC_OPS];
-    int n_bytes[COUNT_MALLOC_OPS];
-    for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
-    	sizes[i] = (rand() % 100)+1;
-    	mem[i] = wfmalloc(sizes[i], thread_id);
+	const int COUNT_MALLOC_OPS = 500000;
+	int thread_id = *((int*)data);
+	int* sizes = malloc(sizeof(int) * COUNT_MALLOC_OPS);
+	int i = 0;
+	char* mem[COUNT_MALLOC_OPS];
+	int n_bytes[COUNT_MALLOC_OPS];
+	for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
+		sizes[i] = (rand() % 100)+1;
+		mem[i] = wfmalloc(sizes[i], thread_id);
 
-    	mem_block_header_t *block_header = (mem_block_header_t*)((char*)(mem[i]) - sizeof(mem_block_header_t));
-    	page_t* page_ptr = (page_t*)((char*)block_header - block_header->byte_offset);
+		mem_block_header_t *block_header = (mem_block_header_t*)((char*)(mem[i]) - sizeof(mem_block_header_t));
+		page_t* page_ptr = (page_t*)((char*)block_header - block_header->byte_offset);
 
 		unsigned page_size = page_ptr->header.block_size;
 
@@ -569,35 +569,35 @@ void* test_worker_wfmalloc_bug(void* data) {
 }
 
 void test_wfmalloc_bug(int COUNT_THREADS) {
-    LOG_PROLOG();
+	LOG_PROLOG();
 
-    wfinit(COUNT_THREADS);
+	wfinit(COUNT_THREADS);
 
-    pthread_t threads[COUNT_THREADS];
-    int data[COUNT_THREADS];
+	pthread_t threads[COUNT_THREADS];
+	int data[COUNT_THREADS];
 
-    int i = 0;
-    for (i = 0; i < COUNT_THREADS; ++i) {
-    	data[i] = i;
-    	pthread_create(threads + i, NULL, test_worker_wfmalloc_bug, data + i);
-    }
+	int i = 0;
+	for (i = 0; i < COUNT_THREADS; ++i) {
+		data[i] = i;
+		pthread_create(threads + i, NULL, test_worker_wfmalloc_bug, data + i);
+	}
 
-    for (i = 0; i < COUNT_THREADS; ++i) {
-    	pthread_join(threads[i], NULL);
-    }
+	for (i = 0; i < COUNT_THREADS; ++i) {
+		pthread_join(threads[i], NULL);
+	}
 
 	LOG_EPILOG();
 }
 
 typedef struct _ThreadData {
-    int allocatorNo;
-    int nThreads;
-    int minSize;
-    int maxSize;
-    int blocksPerThread;
-    int threadId;
-    char **blkp;
-    long count;
+	int allocatorNo;
+	int nThreads;
+	int minSize;
+	int maxSize;
+	int blocksPerThread;
+	int threadId;
+	char **blkp;
+	long count;
 } ThreadData;
 
 int startClock;
@@ -608,7 +608,7 @@ int randomNumber(int min, int max) {
 }
 
 void distribute(int blocksPerThread, int minSize, int maxSize, char** blkp, int allocatorNo, int distributorId) {
-    LOG_PROLOG();
+	LOG_PROLOG();
 
 	int blkSize, i = 0;
 	for (i = 0; i < blocksPerThread; i++) {
@@ -624,7 +624,7 @@ void distribute(int blocksPerThread, int minSize, int maxSize, char** blkp, int 
 }
 
 void initialRoundOfAllocationFree(int numOfBlocks, int minSize, int maxSize, int allocatorNo, int threadId) {
-    LOG_PROLOG();
+	LOG_PROLOG();
 
 	int blkSize, victim, i = 0;
 	char *blkp[numOfBlocks];
@@ -653,7 +653,7 @@ void initialRoundOfAllocationFree(int numOfBlocks, int minSize, int maxSize, int
 }
 
 void* worker(void *data) {
-    LOG_PROLOG();
+	LOG_PROLOG();
 
 	while (startClock != 1);
 
@@ -684,7 +684,7 @@ void* worker(void *data) {
 }
 
 void test_larson(int allocatorNo, int nThreads,  int numOfBlocks, int minSize, int maxSize, unsigned timeSlice) {
-    LOG_PROLOG();
+	LOG_PROLOG();
 
 	startClock = 0;
 	stopClock = 0;
@@ -1039,6 +1039,35 @@ int test_wf_enqueue_multiple(unsigned COUNT_THREADS) {
 }
 
 
+wf_queue_node_t* create_linked_list1(int num_ops, int thread_id, wf_queue_node_t** queue_data, int index) {
+	wf_queue_node_t *linked_list_head;
+	wf_queue_node_t *linked_list_tail;
+
+	wf_queue_node_t *node = queue_data[index];
+	queue_data[index] = NULL;
+	index++;
+
+	init_wf_queue_node(node);
+	node->sanityData = thread_id;
+	linked_list_head = node;
+	linked_list_tail = node;
+
+	while(num_ops > 1) {
+		node = queue_data[index];
+		queue_data[index] = NULL;
+		index++;
+
+		init_wf_queue_node(node);
+		node->sanityData = thread_id;
+		linked_list_tail->next = node;
+		linked_list_tail = node;	
+		num_ops--;
+	}
+
+	return linked_list_head;
+}
+
+
 void* test_func_wf_enq_deq_multiple(void* thread_data) {
 	LOG_PROLOG();
 
@@ -1048,20 +1077,23 @@ void* test_func_wf_enq_deq_multiple(void* thread_data) {
 	int total_num_ops = data->count_enque_ops;
 	int num_ops;
 	int i = 0;
+	int index_queue_data = 0;
 
 	while(total_num_ops != 0) {
 		num_ops = randomNumber(1,5);
 		if (num_ops > total_num_ops) {
 			num_ops = 1;
 		}
-		wf_queue_node_t *node = create_linked_list(num_ops, data->thread_id);
+		wf_queue_node_t *node = create_linked_list1(num_ops, data->thread_id, data->queue_data, index_queue_data);
 		wf_enqueue(data->q, node, data->op_desc, data->thread_id);
 		total_num_ops -= num_ops;
-
+		index_queue_data += num_ops;
+		assert(data->queue_data[i] == NULL);
 		data->queue_data[i] = wf_dequeue(data->q, data->op_desc, data->thread_id);
 		i++;
 	}
 
+	assert(index_queue_data == data->count_enque_ops);
 	data->queue_data[i] = NULL;
 	LOG_EPILOG();
 	return NULL;
@@ -1084,16 +1116,24 @@ int test_wf_enq_deq_multiple(unsigned COUNT_THREADS) {
 	test_data_wf_queue_t thread_data[COUNT_THREADS];
 	int i,j;
 
+	int k = 0;
+
+	wf_queue_node_t * dummy_nodes = (wf_queue_node_t*) malloc(sizeof(wf_queue_node_t) * (COUNT_THREADS * COUNT_OPS)); 
 	for (i = 0; i < COUNT_THREADS; i++) {
 		thread_data[i].thread_id = i;
 		thread_data[i].q = q;
 		thread_data[i].op_desc = op_desc;
 		thread_data[i].count_enque_ops = COUNT_OPS;
 		thread_data[i].queue_data = (wf_queue_node_t**) malloc(sizeof(wf_queue_node_t*) * (COUNT_OPS));
+		for (j = 0; j < COUNT_OPS; j++) {
+			thread_data[i].queue_data[j] = &dummy_nodes[k];
+			k++;
+		}
 		LOG_INFO("Creating thread %d", i);
 		pthread_create(threads + i, NULL, test_func_wf_enq_deq_multiple,
 				thread_data + i);
 	}
+	assert(k == (COUNT_THREADS * COUNT_OPS));
 
 	for (i = 0; i < COUNT_THREADS; ++i) {
 		pthread_join(threads[i], NULL);
@@ -1113,19 +1153,17 @@ int test_wf_enq_deq_multiple(unsigned COUNT_THREADS) {
 
 
 	for (i = 0; i < COUNT_THREADS; i++) {
-	    j = 0;
-	    while((node = thread_data[i].queue_data[j]) != NULL) {
-		nodes_each_thread[node->sanityData]++;
-		free(node);
-		j++;
-	    }
-	    //LOG_INFO("thread %d dequeued %d items", i, j);
+		j = 0;
+		while((node = thread_data[i].queue_data[j]) != NULL) {
+			nodes_each_thread[node->sanityData]++;
+			j++;
+		}
+		//LOG_INFO("thread %d dequeued %d items", i, j);
 	}
 
 	node = wf_dequeue(q, op_desc, 0);
 	while(node != NULL) {
 		nodes_each_thread[node->sanityData]++;
-		free(node);
 		node = wf_dequeue(q, op_desc, 0);
 	}
 
@@ -1134,7 +1172,6 @@ int test_wf_enq_deq_multiple(unsigned COUNT_THREADS) {
 	// accounting for the left over node in the queue
 	node = GET_PTR_FROM_TAGGEDPTR(q->head, wf_queue_node_t);
 	nodes_each_thread[node->sanityData]++;
-	free(node);
 
 	for (i = 0; i < COUNT_THREADS; i++) {
 		if (nodes_each_thread[i] != COUNT_OPS) {
@@ -1145,8 +1182,9 @@ int test_wf_enq_deq_multiple(unsigned COUNT_THREADS) {
 	}
 
 	// Cleaning
+	free(dummy_nodes);
 	for (i = 0; i < COUNT_THREADS; i++) {
-	    free(thread_data[i].queue_data);
+		free(thread_data[i].queue_data);
 	}
 
 	LOG_EPILOG();
@@ -1154,43 +1192,45 @@ int test_wf_enq_deq_multiple(unsigned COUNT_THREADS) {
 	return res;
 }
 int main() {
-    LOG_INIT_CONSOLE();
-    LOG_INIT_FILE();
+	LOG_INIT_CONSOLE();
+	LOG_INIT_FILE();
 
-    //test_page();
-    //test_wf_queue();
-    //test_wf_dequeue();
-    int res = 0;
-    /*for (unsigned i = 10; i < 33; i++) {
-	res += test_wf_dequeue(i);
-    }
-    LOG_INFO("no of times tests failed = %d", res);
-    test_wf_enq_deq();*/
-
-	/*res = 0;
-	for (unsigned i = 10; i < 25; i++) {
-		LOG_INFO("\n\n Starting test with %d threads", i);
-		res += test_wf_enqueue_multiple(i);
-	}
-	LOG_INFO("no of times tests failed = %d", res);*/
-
+	//test_page();
+	//test_wf_queue();
+	//test_wf_dequeue();
+	int res = 0;
+	/*for (unsigned i = 10; i < 33; i++) {
+	  res += test_wf_dequeue(i);
+	  }
+	  LOG_INFO("no of times tests failed = %d", res);
+	  test_wf_enq_deq();*/
+/*
 	res = 0;
-	for (unsigned i = 15; i < 25; i++) {
+	  for (unsigned i = 10; i < 25; i++) {
+	  LOG_INFO("\n\n Starting test with %d threads", i);
+	  res += test_wf_enqueue_multiple(i);
+	  }
+	  LOG_INFO("no of times tests failed = %d", res);
+*/
+	res = 0;
+	for (unsigned i = 1; i < 33; i++) {
 		LOG_INFO("\n\n Starting test with %d threads", i);
 		res += test_wf_enq_deq_multiple(i);
 	}
 	LOG_INFO("no of times tests failed = %d", res);
-    //test_local_pool();
-    //test_pools_single_thread();
-    //test_pools_multi_thread();
-    //test_wfmalloc();
-    //test_larson(1, 5, 10000, 4, 8, 30);
-    //test_larson(0, 4, 1000, 4, 8, 5);
 
-    //test_wfmalloc_bug(10);
+
+	//test_local_pool();
+	//test_pools_single_thread();
+	//test_pools_multi_thread();
+	//test_wfmalloc();
+	//test_larson(1, 5, 10000, 4, 8, 30);
+	//test_larson(0, 4, 1000, 4, 8, 5);
+
+	//test_wfmalloc_bug(10);
 
 	//wfstats();
 
-    LOG_CLOSE();
-    return 0;
+	LOG_CLOSE();
+	return 0;
 }

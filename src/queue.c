@@ -164,6 +164,9 @@ wf_queue_node_t* compute_last(wf_queue_node_t* node) {
 	    head_stamped_ref = next_stamped_ref;
 	    next_stamped_ref = GET_PTR_FROM_TAGGEDPTR(next_stamped_ref, wf_queue_node_t)->next;
 	}
+	#ifdef DEBUG
+	assert(node != NULL);
+	#endif
 	return head_stamped_ref;
 }
 
@@ -223,7 +226,7 @@ void help_enq(wf_queue_head_t* queue, wf_queue_op_head_t* op_desc, int thread_id
 		uint32_t old_stamp = GET_TAG_FROM_TAGGEDPTR(next_stamped_ref);
 		uint32_t new_stamp = get_next_stamp(old_stamp);
 		if (last_stamped_ref == queue->tail) {
-			if (next_stamped_ref == NULL) {
+			if (GET_PTR_FROM_TAGGEDPTR(next_stamped_ref, wf_queue_node_t) == NULL) {
 				if (is_pending(op_desc, phase, thread_to_help)) {
 					wf_queue_node_t* new_stamped_ref = GET_TAGGED_PTR(new_node, wf_queue_node_t, new_stamp);
 					if (atomic_compare_exchange_strong(&(GET_PTR_FROM_TAGGEDPTR(last_stamped_ref, wf_queue_node_t)->next), &next_stamped_ref, new_stamped_ref)) {
