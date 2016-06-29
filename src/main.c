@@ -1196,23 +1196,30 @@ int main() {
 	LOG_INIT_FILE();
 
 	//test_page();
-	//test_wf_queue();
-	//test_wf_dequeue();
+	
+	// Ashish's test for enqueue followed by dequeue (single)
+	test_wf_queue();
+
 	int res = 0;
-	/*for (unsigned i = 10; i < 33; i++) {
+	// Archita's test for dequeue (single)
+	for (unsigned i = 10; i < 33; i++) {
 	  res += test_wf_dequeue(i);
-	  }
-	  LOG_INFO("no of times tests failed = %d", res);
-	  test_wf_enq_deq();*/
-/*
+	}
+	LOG_INFO("no of times tests failed = %d", res);
+	
+        // Test for both enqueue and dequeue (single)	
+	test_wf_enq_deq();
+
+	// Test for just enqueue (multiple)
 	res = 0;
 	  for (unsigned i = 10; i < 25; i++) {
 	  LOG_INFO("\n\n Starting test with %d threads", i);
 	  res += test_wf_enqueue_multiple(i);
 	  }
 	  LOG_INFO("no of times tests failed = %d", res);
-*/
-	res = 0;
+
+	// Test multiple enqueue and single dequeue
+	  res = 0;
 	for (unsigned i = 1; i < 33; i++) {
 		LOG_INFO("\n\n Starting test with %d threads", i);
 		res += test_wf_enq_deq_multiple(i);

@@ -91,6 +91,10 @@ wf_queue_op_head_t* create_queue_op_desc(int num_threads) {
 	return op_desc;
 }
 
+// Function Contract: node is a linked list where the last node's next should be NULL
+// If node is a single node, its next should be NULL
+
+// TODO: Potential bug: If node represents a linked list, only the first node of the LL has its enq_tid set to the thread that is enqueuing. enq_tid of all other nodes in the LL are set to -1.
 void wf_enqueue(wf_queue_head_t *q, wf_queue_node_t* node, wf_queue_op_head_t* op_desc, int thread_id) {
 	LOG_PROLOG();
 
