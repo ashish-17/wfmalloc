@@ -27,6 +27,31 @@ page_t* create_page(uint32_t block_size) {
 	return ptr_page;
 }
 
+page_t* create_npages(uint32_t block_size, uint32_t n) {
+	LOG_PROLOG();
+
+	page_t *ptr_page_head = (page_t*) malloc(sizeof(page_t)*n);
+	uint32_t pg_idx = 0;
+	for (pg_idx = 0; pg_idx < n; ++pg_idx) {
+		(ptr_page_head + pg_idx)->header.block_size = block_size;
+		(ptr_page_head + pg_idx)->header.max_blocks = ((sizeof(page_t) - sizeof(page_header_t)) / BLOCK_SIZE(block_size));
+		(ptr_page_head + pg_idx)->header.min_free_blocks = (ptr_page_head + pg_idx)->header.max_blocks;
+		(ptr_page_head + pg_idx)->header.next_free_block_idx = 0;
+		memset((ptr_page_head + pg_idx)->header.block_flags, BLOCK_OCCUPIED, sizeof((ptr_page_head + pg_idx)->header.block_flags));
+		memset((ptr_page_head + pg_idx)->header.block_flags, BLOCK_EMPTY, ((ptr_page_head + pg_idx)->header.max_blocks));
+
+		INIT_LIST_HEAD(&((ptr_page_head + pg_idx)->header.node));
+
+		init_wf_queue_node(&((ptr_page_head + pg_idx)->header.wf_node));
+		if (pg_idx < (n-1)) {
+			(ptr_page_head + pg_idx)->header.wf_node.next = &((ptr_page_head + pg_idx + 1)->header.wf_node);
+		}
+	}
+
+	LOG_EPILOG();
+	return ptr_page_head;
+}
+
 int find_first_empty_block(page_t* ptr) {
 	LOG_PROLOG();
 

@@ -39,6 +39,8 @@ typedef union page {
 
 page_t* create_page(uint32_t block_size);
 
+page_t* create_npages(uint32_t block_size, uint32_t n);
+
 int find_first_empty_block(page_t* ptr);
 
 int count_empty_blocks(page_t* ptr);
