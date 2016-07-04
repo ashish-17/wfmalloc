@@ -8,16 +8,22 @@
 #ifndef INCLUDES_CONFIG_H_
 #define INCLUDES_CONFIG_H_
 
-#define PAGE_SIZE 4096
+#define WORD_SIZE = 8
+
+#define PAGE_BITS 12 //Number of bits to index within a page, or log_2(PAGE_SIZE).
+#define PAGE_SIZE (1 << PAGE_BITS)
+#define PAGE_MASK (~(PAGE_SIZE - 1)) // with respect to PAGE_SIZE
 #define BLOCK_HEADER_SIZE 8
 #define MIN_BLOCK_SIZE 4
-#define MAX_BLOCKS_IN_PAGE ((PAGE_SIZE) / (BLOCK_HEADER_SIZE + MIN_BLOCK_SIZE))
+//#define MAX_BLOCKS_IN_PAGE ((PAGE_SIZE) / (BLOCK_HEADER_SIZE + MIN_BLOCK_SIZE))
+#define MAX_BLOCKS_IN_PAGE ((PAGE_SIZE) / (MIN_BLOCK_SIZE))
 #define BLOCK_SIZE(blk_size) (BLOCK_HEADER_SIZE + blk_size)
 
 #define BLOCK_EMPTY 0
 #define BLOCK_OCCUPIED 1
 
 #define MAX_BINS 8 // 4 8 16 32 64 128 256 512
+#define MAX_BLOCK_SIZE (1 << (MAX_BINS + 1))
 static const long long TOTAL_INIT_MEMORY = 2147483648/2048; // 2GB
 #define MIN_PAGES_PER_BIN(count_threads) (((((TOTAL_INIT_MEMORY / count_threads) / 2) / 8) / PAGE_SIZE) + 1)
 

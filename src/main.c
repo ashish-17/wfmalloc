@@ -12,51 +12,53 @@
 #include <assert.h>
 #include <unistd.h>
 
+#include <assert.h>
+
 void test_page() {
-	LOG_PROLOG();
+    LOG_PROLOG();
 
-	page_header_t header;
-	LOG_INFO("Size of header = %d", sizeof(header));
-	LOG_INFO("Size of bitmap = %d", sizeof(header.block_flags));
+    page_header_t header;
+    LOG_INFO("Size of header = %d", sizeof(header));
+    //LOG_INFO("Size of bitmap = %d", sizeof(header.block_flags));
 
-	LOG_INFO("Address header = %u", &header);
-	LOG_INFO("Offset block size = %u", OFFSETOF(page_header_t, block_size));
-	LOG_INFO("Offset max blocks = %u", OFFSETOF(page_header_t, max_blocks));
-	LOG_INFO("Offset bitmap = %u", OFFSETOF(page_header_t, block_flags));
+    LOG_INFO("Address header = %u", &header);
+    LOG_INFO("Offset block size = %u", OFFSETOF(page_header_t, block_size));
+    LOG_INFO("Offset max blocks = %u", OFFSETOF(page_header_t, max_blocks));
+    //LOG_INFO("Offset bitmap = %u", OFFSETOF(page_header_t, block_flags));
 
-	page_t *ptr = create_page(4);
-	LOG_INFO("test page block size = %d", ptr->header.block_size);
-	LOG_INFO("test page num blocks = %d", ptr->header.max_blocks);
-	LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
-	LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
+    page_t *ptr = create_page_aligned(4);
+    LOG_INFO("test page block size = %d", ptr->header.block_size);
+    LOG_INFO("test page num blocks = %d", ptr->header.max_blocks);
+    LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
+    LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
 
-	void* blk1 = malloc_block(ptr);
-	LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
-	LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
-	void* blk2 = malloc_block(ptr);
-	LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
-	LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
-	void* blk3 = malloc_block(ptr);
-	LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
-	LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
-	void* blk4 = malloc_block(ptr);
-	LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
-	LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
+    void* blk1 = malloc_block(ptr);
+    LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
+    LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
+    void* blk2 = malloc_block(ptr);
+    LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
+    LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
+    void* blk3 = malloc_block(ptr);
+    LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
+    LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
+    void* blk4 = malloc_block(ptr);
+    LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
+    LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
 
-	free_block(blk3);
-	LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
-	LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
-	free_block(blk4);
-	LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
-	LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
-	free_block(blk2);
-	LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
-	LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
-	free_block(blk1);
-	LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
-	LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
+    free_block(blk3);
+    LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
+    LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
+    free_block(blk4);
+    LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
+    LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
+    free_block(blk2);
+    LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
+    LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
+    free_block(blk1);
+    LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
+    LOG_INFO("count empty blocks = %d", count_empty_blocks(ptr));
 
-	LOG_EPILOG();
+    LOG_EPILOG();
 }
 
 void test_local_pool() {
@@ -465,27 +467,48 @@ int test_wf_dequeue(unsigned COUNT_THREADS) {
 void* test_worker_wfmalloc(void* data) {
 	LOG_PROLOG();
 
-	const int COUNT_MALLOC_OPS = 100;
-	int thread_id = *((int*)data);
-	int* sizes = malloc(sizeof(int) * COUNT_MALLOC_OPS);
-	int i = 0;
-	void** mem = malloc(sizeof(void*) * COUNT_MALLOC_OPS);
-	for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
-		sizes[i] = (rand() % 100)+1;
-		mem[i] = wfmalloc(sizes[i], thread_id);
+    const int COUNT_MALLOC_OPS = 1000000;
+    int thread_id = *((int*)data);
+    char** mem = malloc(sizeof(char*) * COUNT_MALLOC_OPS);
+    int* n_bytes = malloc(sizeof(int) * COUNT_MALLOC_OPS);
+    for (int i = 0; i < COUNT_MALLOC_OPS; ++i) {
+	n_bytes[i] = rand() % 200;
+    	//n_bytes[i] = 256;
+	mem[i] = wfmalloc(n_bytes[i], thread_id);
+	
+	write_to_bytes(mem[i], n_bytes[i]);
+    }
 
-		/*mem_block_header_t *block_header = (mem_block_header_t*)((char*)mem[i] - sizeof(mem_block_header_t));
-		  page_t* page_ptr = (page_t*)((char*)block_header - block_header->byte_offset);
-
-		  LOG_INFO("Requested - %d, Returned = %d", sizes[i], page_ptr->header.block_size);*/
-	}
-
-	for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
+	for (int i = 0; i < COUNT_MALLOC_OPS; ++i) {
+		test_bytes(mem[i], n_bytes[i]);
 		wffree(mem[i]);
 	}
 
 	LOG_EPILOG();
 	return NULL;
+}
+
+void test_wfmalloc(int COUNT_THREADS) {
+    LOG_PROLOG();
+
+    wfinit(COUNT_THREADS);
+    //wfstats();
+
+    pthread_t threads[COUNT_THREADS];
+    int data[COUNT_THREADS];
+
+    int i = 0;
+    for (i = 0; i < COUNT_THREADS; ++i) {
+    	data[i] = i;
+    	pthread_create(threads + i, NULL, test_worker_wfmalloc, data + i);
+    }
+
+    for (i = 0; i < COUNT_THREADS; ++i) {
+    	pthread_join(threads[i], NULL);
+    }
+
+    //wfstats();
+    LOG_EPILOG();
 }
 
 void write_to_bytes(char* string, int n_bytes) {
@@ -510,77 +533,48 @@ void test_bytes(char* string, int n_bytes) {
 	LOG_EPILOG();
 }
 
-void test_wfmalloc() {
-	LOG_PROLOG();
+void* test_worker_large_allocations(void* data) {
+    LOG_PROLOG();
 
-	const int COUNT_THREADS = 10;
+    const int COUNT_MALLOC_OPS = 1000;
+    int thread_id = *((int*)data);
+    int* sizes = malloc(sizeof(int) * COUNT_MALLOC_OPS);
+    int i = 0;
+    char* mem[COUNT_MALLOC_OPS];
+    int n_bytes[COUNT_MALLOC_OPS];
+    for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
+    	sizes[i] = (rand() % 10000)+1;
+    	mem[i] = wfmalloc(sizes[i], thread_id);
 
-	wfinit(COUNT_THREADS);
+    }
+    // size of returned block should be greater than the requested size
+    // this check made in wfmalloc.c
 
-	pthread_t threads[COUNT_THREADS];
-	int data[COUNT_THREADS];
-
-	int i = 0;
-	for (i = 0; i < COUNT_THREADS; ++i) {
-		data[i] = i;
-		pthread_create(threads + i, NULL, test_worker_wfmalloc, data + i);
-	}
-
-	for (i = 0; i < COUNT_THREADS; ++i) {
-		pthread_join(threads[i], NULL);
-	}
-
-	LOG_EPILOG();
-}
-
-void* test_worker_wfmalloc_bug(void* data) {
-	LOG_PROLOG();
-
-	const int COUNT_MALLOC_OPS = 500000;
-	int thread_id = *((int*)data);
-	int* sizes = malloc(sizeof(int) * COUNT_MALLOC_OPS);
-	int i = 0;
-	char* mem[COUNT_MALLOC_OPS];
-	int n_bytes[COUNT_MALLOC_OPS];
-	for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
-		sizes[i] = (rand() % 100)+1;
-		mem[i] = wfmalloc(sizes[i], thread_id);
-
-		mem_block_header_t *block_header = (mem_block_header_t*)((char*)(mem[i]) - sizeof(mem_block_header_t));
-		page_t* page_ptr = (page_t*)((char*)block_header - block_header->byte_offset);
-
-		unsigned page_size = page_ptr->header.block_size;
-
-		if (sizes[i] > page_size) {
-			LOG_INFO("Requested - %d, Returned = %d", sizes[i], page_size);
-			assert(sizes[i] <= page_size);
-		}
-
-		write_to_bytes(mem[i], n_bytes[i]);
-	}
-
-	for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
+    for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
 		test_bytes(mem[i], n_bytes[i]);
 		wffree(mem[i]);
 	}
 
-	LOG_EPILOG();
-	return NULL;
+    // Cleaning
+    free(sizes);
+
+    LOG_EPILOG();
+    return NULL;
 }
 
-void test_wfmalloc_bug(int COUNT_THREADS) {
-	LOG_PROLOG();
+void test_large_allocations(int COUNT_THREADS) {
+    LOG_PROLOG();
 
-	wfinit(COUNT_THREADS);
+    wfinit(COUNT_THREADS);
 
-	pthread_t threads[COUNT_THREADS];
-	int data[COUNT_THREADS];
+    pthread_t threads[COUNT_THREADS];
+    int data[COUNT_THREADS];
 
-	int i = 0;
-	for (i = 0; i < COUNT_THREADS; ++i) {
-		data[i] = i;
-		pthread_create(threads + i, NULL, test_worker_wfmalloc_bug, data + i);
-	}
+    int i = 0;
+    for (i = 0; i < COUNT_THREADS; ++i) {
+    	data[i] = i;
+    	pthread_create(threads + i, NULL, test_worker_large_allocations, data + i);
+    }
 
 	for (i = 0; i < COUNT_THREADS; ++i) {
 		pthread_join(threads[i], NULL);
@@ -1196,7 +1190,7 @@ int main() {
 	LOG_INIT_FILE();
 
 	//test_page();
-	
+/*	
 	// Ashish's test for enqueue followed by dequeue (single)
 	test_wf_queue();
 
@@ -1225,16 +1219,26 @@ int main() {
 		res += test_wf_enq_deq_multiple(i);
 	}
 	LOG_INFO("no of times tests failed = %d", res);
-
+*/
+	/*
+    printf("WFMalloc test\n");
+    test_wfmalloc(1);
+    printf("10 threads\n");
+    test_wfmalloc(10);
+    printf("20 threads\n");
+    test_wfmalloc(20);
+    printf("WFMalloc large allocation test\n");
+*/
+    for (int i = 1; i < 33; i++) {
+        test_large_allocations(i);
+    }
+     
 
 	//test_local_pool();
 	//test_pools_single_thread();
 	//test_pools_multi_thread();
-	//test_wfmalloc();
 	//test_larson(1, 5, 10000, 4, 8, 30);
 	//test_larson(0, 4, 1000, 4, 8, 5);
-
-	//test_wfmalloc_bug(10);
 
 	//wfstats();
 

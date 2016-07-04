@@ -12,6 +12,8 @@
 #include <unistd.h>
 #include <sys/time.h>
 
+#include <assert.h>
+
 local_pool_t* create_local_pool(int count_threads) {
 	LOG_PROLOG();
 
@@ -41,7 +43,7 @@ local_pool_t* create_local_pool(int count_threads) {
 			}
 
 			for (page_idx = 0; page_idx < pool->min_pages_per_bin; ++page_idx) {
-				ptr_page = create_page(block_size);
+				ptr_page = create_page_aligned(block_size);
 				add_page(pool, ptr_page, thread);
 			}
 
@@ -267,6 +269,9 @@ void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int
 #endif
 
 	LOG_EPILOG();
+
+	//assert(block); //No returning null pointers.
+
 	return block;
 }
 

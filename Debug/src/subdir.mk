@@ -10,7 +10,8 @@ C_SRCS += \
 ../src/page.c \
 ../src/queue.c \
 ../src/shared_pool.c \
-../src/wfmalloc.c 
+../src/wfmalloc.c \
+../src/large_allocations.c
 
 OBJS += \
 ./src/local_pool.o \
@@ -19,7 +20,8 @@ OBJS += \
 ./src/page.o \
 ./src/queue.o \
 ./src/shared_pool.o \
-./src/wfmalloc.o 
+./src/wfmalloc.o \
+./src/large_allocations.o
 
 C_DEPS += \
 ./src/local_pool.d \
@@ -28,8 +30,12 @@ C_DEPS += \
 ./src/page.d \
 ./src/queue.d \
 ./src/shared_pool.d \
-./src/wfmalloc.d 
+./src/wfmalloc.d \
+./src/large_allocations.d
 
+CFLAGS = -O3 -DNDEBUG --std=gnu99
+
+CFLAGS_DBG = -g3 -O1 --std=gnu99
 
 # Each subdirectory must supply rules for building sources it contributes
 src/%.o: ../src/%.c

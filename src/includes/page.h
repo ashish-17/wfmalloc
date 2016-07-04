@@ -29,7 +29,7 @@ struct page_header {
 	int next_free_block_idx;
 	list_t node;
 	wf_queue_node_t wf_node;
-	uint8_t block_flags[MAX_BLOCKS_IN_PAGE];
+	uint8_t block_flags[0];
 };
 
 typedef union page {
@@ -37,7 +37,9 @@ typedef union page {
 	uint8_t memory[PAGE_SIZE];
 } page_t;
 
-page_t* create_page(uint32_t block_size);
+page_t* create_page_aligned(uint32_t block_size);
+
+//page_t* create_page(uint32_t block_size);
 
 page_t* create_npages(uint32_t block_size, uint32_t n);
 
