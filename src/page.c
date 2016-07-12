@@ -10,7 +10,7 @@
 #include <string.h>
 #include <math.h>
 #include <unistd.h>
-#include <pthread.h>
+#include <sys/mman.h>
 
 #include <assert.h>
 
@@ -46,65 +46,45 @@ int is_power_of_2(uint32_t block_size) {
 	return is_power_of_2(block_size >> 1);
 }
 
-void* sbrk(intptr_t increment);
-
 int is_page_aligned(void* page_ptr) {
 	return ((uintptr_t)page_ptr % PAGE_SIZE == 0);
 }
 
-
-#define PAGES_PER_ALLOC 16
-page_t* global_page_store_bottom = NULL;
-page_t* global_page_store_top = NULL;
-pthread_mutex_t global_page_store_lock = PTHREAD_MUTEX_INITIALIZER;
-
-page_t* create_page_aligned(uint32_t block_size) {
+page_t* create_npages_aligned(uint32_t block_size, uint32_t n) {
 	LOG_PROLOG();
 
 	assert(is_power_of_2(block_size));
 
-	page_t* ptr_page;
+	page_t* ptr_page = mmap(NULL, n * PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
 
-	pthread_mutex_lock(&global_page_store_lock);
+	assert(ptr_page);
+	assert(is_page_aligned(ptr_page));
+	
+	page_t *head_list = ptr_page;
+	page_t *temp_list = NULL;
+	
+	for (int i = 0; i < n; i++) {
+	    (ptr_page + i)->header.block_size = block_size;
 
-	if(global_page_store_bottom == global_page_store_top) {
-		void* new_mem = sbrk(PAGE_SIZE * PAGES_PER_ALLOC);
-		assert(new_mem != (void*) -1);
+	    (ptr_page + i)->header.max_blocks = num_blocks_in_page(block_size);
+	    (ptr_page + i)->header.min_free_blocks = ptr_page->header.max_blocks;
+	    (ptr_page + i)->header.next_free_block_idx = 0;
+	    memset(get_block_flags_pointer((ptr_page + i)), BLOCK_EMPTY, num_blocks_in_page(block_size));
 
-		global_page_store_bottom = new_mem;
-		unsigned pages = PAGES_PER_ALLOC;
-		if(!is_page_aligned(global_page_store_bottom)) {
-			global_page_store_bottom = (void*)((((uintptr_t)global_page_store_bottom) + PAGE_SIZE) & PAGE_MASK);
-			pages--;
-		}
-		assert(is_page_aligned(global_page_store_bottom));
-		global_page_store_top = global_page_store_bottom + pages;
+	    INIT_LIST_HEAD(&((ptr_page + i)->header.node));
+	    init_wf_queue_node(&((ptr_page + i)->header.wf_node));
+	
+	    if (temp_list) {
+		    temp_list->header.wf_node.next = &((ptr_page + i)->header.wf_node);
+	    }
+	    temp_list = (ptr_page + i);
+	    assert((ptr_page + i)->header.max_blocks <= MAX_BLOCKS_IN_PAGE);
+	    assert(is_page_aligned(ptr_page + i));
+	    //assert(((uintptr_t)(ptr_page + i)) % PAGE_SIZE == 0);
 	}
 
-	ptr_page = global_page_store_bottom;
-	global_page_store_bottom++;
-	assert(global_page_store_bottom <= global_page_store_top);
-
-
-
-	pthread_mutex_unlock(&global_page_store_lock);
-	assert(ptr_page);
-	ptr_page->header.block_size = block_size;
-	//	ptr_page->header.max_blocks = ((sizeof(page_t) - sizeof(page_header_t)) / block_size);
-	ptr_page->header.max_blocks = num_blocks_in_page(block_size);
-	ptr_page->header.min_free_blocks = ptr_page->header.max_blocks;
-	ptr_page->header.next_free_block_idx = 0;
-	//	memset(ptr_page->header.block_flags, BLOCK_OCCUPIED, sizeof(ptr_page->header.block_flags));
-	//	memset(ptr_page->header.block_flags, BLOCK_EMPTY, (ptr_page->header.max_blocks));
-	memset(get_block_flags_pointer(ptr_page), BLOCK_EMPTY, num_blocks_in_page(block_size));
-
-	INIT_LIST_HEAD(&(ptr_page->header.node));
-
-	assert(ptr_page->header.max_blocks <= MAX_BLOCKS_IN_PAGE);
-	assert(((uintptr_t)ptr_page) % PAGE_SIZE == 0);
-
 	LOG_EPILOG();
-	return ptr_page;
+	return head_list;
 }
 /*
    page_t* create_page(uint32_t block_size) {

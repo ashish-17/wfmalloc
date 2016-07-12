@@ -12,6 +12,7 @@
 #include "includes/local_pool.h"
 #include <unistd.h>
 #include <stdlib.h>
+#include <assert.h>
 
 
 shared_pool_t* create_shared_pool(int count_threads) {
@@ -28,12 +29,26 @@ shared_pool_t* create_shared_pool(int count_threads) {
 	int queue = 0;
 	int pages = 0;
 	int min_pages_per_bin = MIN_PAGES_PER_BIN(count_threads);
+
+#ifdef DEBUG
+	//LOG_INFO("init pages = %d", min_pages_per_bin);
+	n_deq_per_q = malloc(num_processors * sizeof(int));
+	n_enq_per_q = malloc(num_processors * sizeof(int));
+	deq_lock = malloc(num_processors * sizeof(pthread_mutex_t));
+	enq_lock = malloc(num_processors * sizeof(pthread_mutex_t));
+
+	for (int x = 0; x < num_processors; x++) {
+	    n_deq_per_q[x] = 0;
+	    n_enq_per_q[x] = min_pages_per_bin;
+	}
+	n_processors = num_processors; 
+#endif
 	page_t* ptr_page = NULL;
 	for (queue = 0; queue < num_processors; ++queue) {
 		int block_size = MIN_BLOCK_SIZE;
 		for (bin = 0; bin < MAX_BINS; ++bin) {
 			for (pages = 0; pages < (min_pages_per_bin + 1); ++pages) {
-				ptr_page = create_page_aligned(block_size);
+				ptr_page = create_npages_aligned(block_size, 1);
 				init_wf_queue_node(&(ptr_page->header.wf_node));
 
 				if (pages == 0) {
@@ -75,20 +90,38 @@ page_t* get_page_shared_pool(shared_pool_t *pool, local_pool_t *l_pool, int thre
 		ret = (page_t*)list_entry(tmp, page_header_t, wf_node);
 	} else {
 #ifdef LOG_LEVEL_STATS
-	struct timeval s, e;
-	gettimeofday(&s, NULL);
+	    struct timeval s, e;
+	    gettimeofday(&s, NULL);
 #endif
 
-		ret = create_page_aligned(quick_pow2(quick_log2(MIN_BLOCK_SIZE) + bin_idx));
+	    ret = create_npages_aligned(quick_pow2(quick_log2(MIN_BLOCK_SIZE) + bin_idx), NPAGES_PER_ALLOC);
+	    assert(ret);
+
+	    page_t * next_head = (page_t*)list_entry(ret->header.wf_node.next, page_header_t, wf_node);
+	    assert(is_page_aligned(next_head));
+	// enqueue all but one page in the shared pool
+	    wf_enqueue(pool->thread_data[queue_idx].bins[bin_idx], &(next_head->header.wf_node), pool->op_desc, thread_id);
+
+#ifdef DEBUG
+	    //pthread_mutex_lock(&enq_lock[queue_idx]);
+	    n_enq_per_q[queue_idx] += NPAGES_PER_ALLOC;
+	    //pthread_mutex_unlock(&enq_lock[queue_idx]);
+#endif
 
 #ifdef LOG_LEVEL_STATS
-	gettimeofday(&e, NULL);
-	long int timeTakenMalloc = ((e.tv_sec * 1000000 + e.tv_usec) - (s.tv_sec * 1000000 + s.tv_usec ));
-	(l_pool->thread_data+thread_id)->time_malloc_system_call += timeTakenMalloc;
+	    gettimeofday(&e, NULL);
+	    long int timeTakenMalloc = ((e.tv_sec * 1000000 + e.tv_usec) - (s.tv_sec * 1000000 + s.tv_usec ));
+	    (l_pool->thread_data+thread_id)->time_malloc_system_call += timeTakenMalloc;
 #endif
 	}
 
+
 	LOG_EPILOG();
+#ifdef DEBUG
+	//pthread_mutex_lock(&deq_lock[queue_idx]);
+	n_deq_per_q[queue_idx]++;
+	//pthread_mutex_unlock(&deq_lock[queue_idx]);
+#endif
 	return ret;
 }
 

@@ -11,6 +11,7 @@
 #include <string.h>
 #include <assert.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 #include <assert.h>
 
@@ -26,7 +27,7 @@ void test_page() {
     LOG_INFO("Offset max blocks = %u", OFFSETOF(page_header_t, max_blocks));
     //LOG_INFO("Offset bitmap = %u", OFFSETOF(page_header_t, block_flags));
 
-    page_t *ptr = create_page_aligned(4);
+    page_t *ptr = create_npages_aligned(4, 1);
     LOG_INFO("test page block size = %d", ptr->header.block_size);
     LOG_INFO("test page num blocks = %d", ptr->header.max_blocks);
     LOG_INFO("first empty block = %d", find_first_empty_block(ptr));
@@ -541,17 +542,18 @@ void* test_worker_large_allocations(void* data) {
     int* sizes = malloc(sizeof(int) * COUNT_MALLOC_OPS);
     int i = 0;
     char* mem[COUNT_MALLOC_OPS];
-    int n_bytes[COUNT_MALLOC_OPS];
+    
     for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
     	sizes[i] = (rand() % 10000)+1;
     	mem[i] = wfmalloc(sizes[i], thread_id);
+	write_to_bytes(mem[i], sizes[i]);
 
     }
     // size of returned block should be greater than the requested size
     // this check made in wfmalloc.c
 
     for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
-		test_bytes(mem[i], n_bytes[i]);
+		test_bytes(mem[i], sizes[i]);
 		wffree(mem[i]);
 	}
 
@@ -592,6 +594,10 @@ typedef struct _ThreadData {
 	int threadId;
 	char **blkp;
 	long count;
+	// for Linux Scalability
+	int objSize;
+	int iterations;
+	int repetitions;
 } ThreadData;
 
 int startClock;
@@ -1185,6 +1191,126 @@ int test_wf_enq_deq_multiple(unsigned COUNT_THREADS) {
 
 	return res;
 }
+
+void* test_worker_shared_pool(void* thread_data) {
+    LOG_PROLOG();
+
+    test_data_wf_queue_t* data = (test_data_wf_queue_t*)thread_data;
+    
+    int size_each_request = data->number_ops; // bad naming
+    int n_requests_per_thread = data->count_deque_ops;
+    int thread_id = data->thread_id;
+
+    for (int i = 0; i < n_requests_per_thread; i++) {
+        wfmalloc(size_each_request, thread_id);    
+    }
+    
+    LOG_EPILOG();
+    return NULL;
+}
+
+void test_shared_pool() {
+    LOG_PROLOG();
+
+    int COUNT_THREADS = 8;
+    int n_requests_per_thread = 49;
+    int size_each_request = 256; // for simplicity keep this as power of 2
+    int n_requests_served_per_page = PAGE_SIZE/size_each_request - 1;
+    int n_pages_needed_per_thread = n_requests_per_thread / n_requests_served_per_page;
+    int total_pages_needed = n_pages_needed_per_thread * COUNT_THREADS;
+
+    int n_OS_calls = total_pages_needed / NPAGES_PER_ALLOC;
+
+    wfinit(COUNT_THREADS);
+
+    pthread_t threads[COUNT_THREADS];
+    test_data_wf_queue_t thread_data[COUNT_THREADS];
+
+
+    int i = 0;
+    for (i = 0; i < COUNT_THREADS; ++i) {
+	    thread_data[i].thread_id = i;
+	    thread_data[i].count_deque_ops = n_requests_per_thread;
+	    thread_data[i].number_ops = size_each_request; // bad naming
+	    pthread_create(threads + i, NULL, test_worker_shared_pool, thread_data + i);
+    }
+
+    for (i = 0; i < COUNT_THREADS; ++i) {
+	    pthread_join(threads[i], NULL);
+    }
+
+    LOG_INFO("number of OS calls %d", n_OS_calls);
+#ifdef DEBUG
+    LOG_INFO("enq data");
+    for (i = 0; i < n_processors; i++) {
+        LOG_INFO("n_enq_per_q[%d] = %d", i, n_enq_per_q[i]);
+    }
+    
+    LOG_INFO("deq data");
+    for (i = 0; i < n_processors; i++) {
+        LOG_INFO("n_deq_per_q[%d] = %d", i, n_deq_per_q[i]);
+    }
+
+    for (i = 0; i < n_processors; i++) {
+        int bin_idx = quick_log2(upper_power_of_two(size_each_request)) - quick_log2(MIN_BLOCK_SIZE); 
+        //LOG_INFO("bin_idx = %d", bin_idx);
+	wf_queue_head_t* q = s_pool_copy->thread_data[i].bins[bin_idx];
+        int count = 0;
+        while((wf_dequeue(q, s_pool_copy->op_desc, 0)) != NULL) {
+           count++;
+        }
+	//LOG_INFO("left[%d] = %d", i, count);
+	assert(count == n_enq_per_q[i] - n_deq_per_q[i]);
+		
+    }
+#endif
+
+    LOG_EPILOG();
+}
+
+
+void* workerLinuxScalability(void* data) {
+	ThreadData *threadData = (ThreadData*) data;
+	char **ptr = (char**) malloc(sizeof(char*) * threadData->iterations);
+
+	for (int i = 0; i < threadData->iterations; i++) {
+		ptr[i] = wfmalloc(threadData->objSize, threadData->threadId);
+	}
+
+	for (int i = 0; i < threadData->iterations; i++) {
+		wffree(ptr[i]);
+	}
+
+	free(ptr);   
+	return NULL;
+}
+
+
+
+void linuxScalability(int nThreads, int objSize, int iterations) {
+    struct timeval start, end;
+    ThreadData threadData[nThreads];
+    pthread_t threads[nThreads];
+
+    wfinit(nThreads);
+    gettimeofday (&start, NULL);
+    for (int t = 0; t < nThreads; t++) {
+	threadData[t].nThreads = nThreads;
+	threadData[t].objSize = objSize;
+	threadData[t].iterations = iterations;
+	threadData[t].threadId = t;
+	pthread_create((threads + t), NULL, workerLinuxScalability, (threadData + t));
+    }
+
+    for(int t = 0; t < nThreads; t++) {
+	    pthread_join(threads[t], NULL);
+    }
+
+    gettimeofday (&end, NULL);
+    long double timeTaken = ((end.tv_sec + end.tv_usec / 1000000.0) - (start.tv_sec + start.tv_usec / 1000000.0));
+     LOG_INFO("%.6Lf", timeTaken);
+}
+
 int main() {
 	LOG_INIT_CONSOLE();
 	LOG_INIT_FILE();
@@ -1220,7 +1346,7 @@ int main() {
 	}
 	LOG_INFO("no of times tests failed = %d", res);
 */
-	/*
+	
     printf("WFMalloc test\n");
     test_wfmalloc(1);
     printf("10 threads\n");
@@ -1228,11 +1354,22 @@ int main() {
     printf("20 threads\n");
     test_wfmalloc(20);
     printf("WFMalloc large allocation test\n");
-*/
+
     for (int i = 1; i < 33; i++) {
         test_large_allocations(i);
     }
      
+
+	// Test if number of OS calls for more memory on finding shared pools to be empty
+	// are reduced due to multiple enqueue
+
+	 test_shared_pool();
+
+	// linux scalability
+	int nThreads = 2;
+	int objSize = 200;
+	int iterations = 1000;
+	linuxScalability(nThreads, objSize, iterations);
 
 	//test_local_pool();
 	//test_pools_single_thread();

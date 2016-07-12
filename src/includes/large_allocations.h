@@ -15,5 +15,6 @@ typedef struct lpage {
 
 void* lalloc(size_t bytes);
 void lfree(void* ptr);
+uint32_t is_large_allocation(void* ptr);
 size_t get_num_pages_from_payload(void* pptr);
 #endif

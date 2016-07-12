@@ -12,6 +12,9 @@
 #include "config.h"
 #include "page.h"
 
+#ifdef DEBUG
+     #include <pthread.h>
+#endif
 struct local_pool;
 
 typedef struct shared_thread_data {
@@ -32,5 +35,14 @@ void add_page_shared_pool(shared_pool_t *pool, page_t *page, int thread_id, int 
 page_t* get_page_shared_pool(shared_pool_t *pool, struct local_pool* l_pool, int thread_id, int queue_idx, int block_size);
 
 void shared_pool_stats(shared_pool_t* pool);
+
+#ifdef DEBUG
+pthread_mutex_t *enq_lock;
+pthread_mutex_t *deq_lock;
+int* n_deq_per_q;
+int* n_enq_per_q;
+int n_processors;
+shared_pool_t* s_pool_copy;
+#endif
 
 #endif /* INCLUDES_SHARED_POOL_H_ */

@@ -37,11 +37,8 @@ typedef union page {
 	uint8_t memory[PAGE_SIZE];
 } page_t;
 
-page_t* create_page_aligned(uint32_t block_size);
 
-//page_t* create_page(uint32_t block_size);
-
-page_t* create_npages(uint32_t block_size, uint32_t n);
+page_t* create_npages_aligned(uint32_t block_size, uint32_t n);
 
 int find_first_empty_block(page_t* ptr);
 
@@ -54,5 +51,7 @@ bool has_empty_block(page_t* ptr);
 void* malloc_block(page_t* ptr);
 
 void free_block(void *block_ptr);
+
+int is_page_aligned(void* page_ptr);
 
 #endif /* INCLUDES_PAGE_H_ */
