@@ -1346,7 +1346,8 @@ int main() {
 	}
 	LOG_INFO("no of times tests failed = %d", res);
 */
-	
+
+/*	
     printf("WFMalloc test\n");
     test_wfmalloc(1);
     printf("10 threads\n");
@@ -1359,14 +1360,14 @@ int main() {
         test_large_allocations(i);
     }
      
-
 	// Test if number of OS calls for more memory on finding shared pools to be empty
 	// are reduced due to multiple enqueue
 
 	 test_shared_pool();
+*/
 
 	// linux scalability
-	int nThreads = 2;
+	int nThreads = 8;
 	int objSize = 200;
 	int iterations = 1000;
 	linuxScalability(nThreads, objSize, iterations);
@@ -1377,7 +1378,7 @@ int main() {
 	//test_larson(1, 5, 10000, 4, 8, 30);
 	//test_larson(0, 4, 1000, 4, 8, 5);
 
-	//wfstats();
+	wfstats();
 
 	LOG_CLOSE();
 	return 0;

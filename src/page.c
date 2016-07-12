@@ -55,8 +55,9 @@ page_t* create_npages_aligned(uint32_t block_size, uint32_t n) {
 
 	assert(is_power_of_2(block_size));
 
-	page_t* ptr_page = mmap(NULL, n * PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
 
+	page_t* ptr_page = mmap(NULL, n * PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+	
 	assert(ptr_page);
 	assert(is_page_aligned(ptr_page));
 	

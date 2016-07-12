@@ -89,11 +89,11 @@ page_t* get_page_shared_pool(shared_pool_t *pool, local_pool_t *l_pool, int thre
 	if (likely(tmp != NULL)) {
 		ret = (page_t*)list_entry(tmp, page_header_t, wf_node);
 	} else {
-#ifdef LOG_LEVEL_STATS
-	    struct timeval s, e;
-	    gettimeofday(&s, NULL);
-#endif
 
+#ifdef LOG_LEVEL_STATS
+	struct timeval s, e;
+	gettimeofday(&s, NULL);
+#endif
 	    ret = create_npages_aligned(quick_pow2(quick_log2(MIN_BLOCK_SIZE) + bin_idx), NPAGES_PER_ALLOC);
 	    assert(ret);
 
@@ -109,9 +109,9 @@ page_t* get_page_shared_pool(shared_pool_t *pool, local_pool_t *l_pool, int thre
 #endif
 
 #ifdef LOG_LEVEL_STATS
-	    gettimeofday(&e, NULL);
-	    long int timeTakenMalloc = ((e.tv_sec * 1000000 + e.tv_usec) - (s.tv_sec * 1000000 + s.tv_usec ));
-	    (l_pool->thread_data+thread_id)->time_malloc_system_call += timeTakenMalloc;
+	gettimeofday(&e, NULL);
+	long int timeTakenMalloc = ((e.tv_sec * 1000000 + e.tv_usec) - (s.tv_sec * 1000000 + s.tv_usec ));
+	(l_pool->thread_data+thread_id)->time_malloc_system_call += timeTakenMalloc;
 #endif
 	}
 

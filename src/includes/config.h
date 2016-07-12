@@ -26,7 +26,7 @@
 #define MAX_BLOCK_SIZE (1 << (MAX_BINS + 1))
 static const long long TOTAL_INIT_MEMORY = 2147483648/2048; // 2GB
 #define MIN_PAGES_PER_BIN(count_threads) (((((TOTAL_INIT_MEMORY / count_threads) / 2) / 8) / PAGE_SIZE) + 1)
-#define NPAGES_PER_ALLOC 32 // no of pages to fetch from OS in one go on finding shared pool empty
+#define NPAGES_PER_ALLOC 8 // no of pages to fetch from OS in one go on finding shared pool empty
 
 
 #define MAX_MLFQ 4
