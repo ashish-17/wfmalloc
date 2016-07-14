@@ -1281,6 +1281,17 @@ void* workerLinuxScalability(void* data) {
 		wffree(ptr[i]);
 	}
 
+
+	LOG_INFO("one round over");
+
+	for (int i = 0; i < threadData->iterations; i++) {
+		ptr[i] = wfmalloc(threadData->objSize, threadData->threadId);
+	}
+
+	LOG_INFO("here");
+	for (int i = 0; i < threadData->iterations; i++) {
+		wffree(ptr[i]);
+	}
 	free(ptr);   
 	return NULL;
 }
@@ -1315,7 +1326,7 @@ int main() {
 	LOG_INIT_CONSOLE();
 	LOG_INIT_FILE();
 
-	//test_page();
+//	test_page();
 /*	
 	// Ashish's test for enqueue followed by dequeue (single)
 	test_wf_queue();
@@ -1346,17 +1357,15 @@ int main() {
 	}
 	LOG_INFO("no of times tests failed = %d", res);
 */
-
-/*	
-    printf("WFMalloc test\n");
-    test_wfmalloc(1);
-    printf("10 threads\n");
-    test_wfmalloc(10);
-    printf("20 threads\n");
-    test_wfmalloc(20);
-    printf("WFMalloc large allocation test\n");
-
+/*
+    for (int i = 31; i < 33; i += 5) {
+	LOG_INFO("test_wfmalloc(%d)", i);
+        test_wfmalloc(i);
+    } 
+  */  
+    /*
     for (int i = 1; i < 33; i++) {
+	LOG_INFO("test_large_allocations(%d)",i);
         test_large_allocations(i);
     }
      
@@ -1365,14 +1374,21 @@ int main() {
 
 	 test_shared_pool();
 */
-
 	// linux scalability
-	int nThreads = 8;
-	int objSize = 200;
-	int iterations = 1000;
-	linuxScalability(nThreads, objSize, iterations);
+	int objSize[] = {8, 100, 256};
+	int iterations[] = {100, 500};
+	for (int i = 1; i < 10; i++) {
+	    for (int objSizeIndex = 0; objSizeIndex < sizeof(objSize)/sizeof(int); objSizeIndex++) {
+		  for (int iterIndex = 0; iterIndex < sizeof(iterations)/sizeof(int); iterIndex++) {
+			LOG_INFO("linuxScalability %d, %d, %d", i, objSize[objSizeIndex], iterations[iterIndex]);	
+	  	       linuxScalability(i, objSize[objSizeIndex], iterations[iterIndex]);
+		  }
+	    }
+	}
 
-	//test_local_pool();
+	
+
+//	test_local_pool();
 	//test_pools_single_thread();
 	//test_pools_multi_thread();
 	//test_larson(1, 5, 10000, 4, 8, 30);

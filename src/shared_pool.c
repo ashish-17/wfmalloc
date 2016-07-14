@@ -28,7 +28,7 @@ shared_pool_t* create_shared_pool(int count_threads) {
 	int bin = 0;
 	int queue = 0;
 	int pages = 0;
-	int min_pages_per_bin = MIN_PAGES_PER_BIN(count_threads);
+	int min_pages_per_bin = INIT_PAGES_PER_BIN(count_threads);
 
 #ifdef DEBUG
 	//LOG_INFO("init pages = %d", min_pages_per_bin);
@@ -66,10 +66,14 @@ shared_pool_t* create_shared_pool(int count_threads) {
 	return pool;
 }
 
+// Function Contract: just a "single page" is to be enqueued
 void add_page_shared_pool(shared_pool_t *pool, page_t *page, int thread_id, int queue_idx) {
 	LOG_PROLOG();
 
 	int bin_idx = quick_log2(page->header.block_size) - quick_log2(MIN_BLOCK_SIZE);
+
+	// page's node has to be initialised so that node->next = NULL, enq_tid = -1, deq_tid = -1
+	init_wf_queue_node(&(page->header.wf_node));
 	wf_enqueue(pool->thread_data[queue_idx].bins[bin_idx], &(page->header.wf_node), pool->op_desc, thread_id);
 
 	LOG_EPILOG();

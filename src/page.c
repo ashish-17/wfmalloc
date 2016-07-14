@@ -191,6 +191,10 @@ uint32_t get_min_free_blocks(page_t* ptr) {
 	return ptr->header.min_free_blocks;
 }
 
+uint32_t get_max_blocks(page_t* ptr) {
+	return ptr->header.max_blocks;
+}
+
 bool has_empty_block(page_t* ptr) {
 	LOG_PROLOG();
 
@@ -210,8 +214,8 @@ void* malloc_block(page_t* ptr) {
 	void* block = NULL;
 	int block_idx = find_first_empty_block(ptr);
 	assert(ptr->header.max_blocks == num_blocks_in_page(block_size));
-	assert(block_idx < ptr->header.max_blocks);
 	if (block_idx != -1) {
+		assert(block_idx < ptr->header.max_blocks);
 		//assert(ptr->header.block_flags[block_idx] == BLOCK_EMPTY);
 		assert(get_block_flags(ptr,block_idx) == BLOCK_EMPTY);
 		//ptr->header.block_flags[block_idx] = BLOCK_OCCUPIED;
