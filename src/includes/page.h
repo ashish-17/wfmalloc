@@ -24,11 +24,11 @@ typedef struct mem_block_header {
 
 struct page_header {
 	uint32_t block_size;
-	uint32_t max_blocks;
-	uint32_t min_free_blocks;
+	uint32_t max_blocks; // no of blocks in page
+	//uint32_t min_free_blocks; // no of available blocks in page (underestimate due to pd-cr)
 	int next_free_block_idx;
-	list_t node;
-	wf_queue_node_t wf_node;
+	list_t node;  // used in mlfq in local-pool
+	wf_queue_node_t wf_node;  // used in wait-free queue in shared-pool
 	uint8_t block_flags[0];
 };
 
@@ -40,13 +40,17 @@ typedef union page {
 
 page_t* create_npages_aligned(uint32_t block_size, uint32_t n);
 
-int find_first_empty_block(page_t* ptr);
+//int find_first_empty_block(page_t* ptr);
 
+// returns number of available blocks in page
 int count_empty_blocks(page_t* ptr);
 
-uint32_t get_min_free_blocks(page_t* ptr);
+//uint32_t get_min_free_blocks(page_t* ptr);
 
-bool has_empty_block(page_t* ptr);
+// returns the number of blocks in a page
+uint32_t get_max_blocks(page_t* ptr);
+
+//bool has_empty_block(page_t* ptr);
 
 void* malloc_block(page_t* ptr);
 

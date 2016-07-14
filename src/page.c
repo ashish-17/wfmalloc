@@ -68,7 +68,7 @@ page_t* create_npages_aligned(uint32_t block_size, uint32_t n) {
 	    (ptr_page + i)->header.block_size = block_size;
 
 	    (ptr_page + i)->header.max_blocks = num_blocks_in_page(block_size);
-	    (ptr_page + i)->header.min_free_blocks = ptr_page->header.max_blocks;
+	    //(ptr_page + i)->header.min_free_blocks = ptr_page->header.max_blocks;
 	    (ptr_page + i)->header.next_free_block_idx = 0;
 	    memset(get_block_flags_pointer((ptr_page + i)), BLOCK_EMPTY, num_blocks_in_page(block_size));
 
@@ -87,78 +87,35 @@ page_t* create_npages_aligned(uint32_t block_size, uint32_t n) {
 	LOG_EPILOG();
 	return head_list;
 }
-/*
-   page_t* create_page(uint32_t block_size) {
-   LOG_PROLOG();
 
-   page_t *ptr_page = (page_t*) malloc(sizeof(page_t));
-   ptr_page->header.block_size = block_size;
-   ptr_page->header.max_blocks = ((sizeof(page_t) - sizeof(page_header_t)) / BLOCK_SIZE(block_size));
-   ptr_page->header.min_free_blocks = ptr_page->header.max_blocks;
-   ptr_page->header.next_free_block_idx = 0;
-   memset(ptr_page->header.block_flags, BLOCK_OCCUPIED, sizeof(ptr_page->header.block_flags));
-   memset(ptr_page->header.block_flags, BLOCK_EMPTY, (ptr_page->header.max_blocks));
-   INIT_LIST_HEAD(&(ptr_page->header.node));
+int find_first_empty_block(page_t*ptr) {
+    LOG_PROLOG();
 
-   LOG_EPILOG();
-   return ptr_page;
-   }
+    int block_idx = -1;
+    page_header_t *header = &(ptr->header);
 
-   page_t* create_npages(uint32_t block_size, uint32_t n) {
-   LOG_PROLOG();
+    assert(header->next_free_block_idx < header->max_blocks);
 
-   page_t *ptr_page_head = (page_t*) malloc(sizeof(page_t)*n);
-   uint32_t pg_idx = 0;
-   for (pg_idx = 0; pg_idx < n; ++pg_idx) {
-   (ptr_page_head + pg_idx)->header.block_size = block_size;
-   (ptr_page_head + pg_idx)->header.max_blocks = ((sizeof(page_t) - sizeof(page_header_t)) / BLOCK_SIZE(block_size));
-   (ptr_page_head + pg_idx)->header.min_free_blocks = (ptr_page_head + pg_idx)->header.max_blocks;
-   (ptr_page_head + pg_idx)->header.next_free_block_idx = 0;
-   memset((ptr_page_head + pg_idx)->header.block_flags, BLOCK_OCCUPIED, sizeof((ptr_page_head + pg_idx)->header.block_flags));
-   memset((ptr_page_head + pg_idx)->header.block_flags, BLOCK_EMPTY, ((ptr_page_head + pg_idx)->header.max_blocks));
-
-   INIT_LIST_HEAD(&((ptr_page_head + pg_idx)->header.node));
-
-   init_wf_queue_node(&((ptr_page_head + pg_idx)->header.wf_node));
-   if (pg_idx < (n-1)) {
-   (ptr_page_head + pg_idx)->header.wf_node.next = &((ptr_page_head + pg_idx + 1)->header.wf_node);
-   }
-   }
-
-   LOG_EPILOG();
-   return ptr_page_head;
-   }
-
- */
-int find_first_empty_block(page_t* ptr) {
-	LOG_PROLOG();
-
-	int block_idx = 0;
-	int result = -1;
-	page_header_t *header = &(ptr->header);
-	if (header->next_free_block_idx != -1) {
-		result = header->next_free_block_idx;
-		ptr->header.next_free_block_idx = -1;
-	} 
-	else {
-		for (block_idx = 0; block_idx < header->max_blocks; ++block_idx) {
-			//if (header->block_flags[block_idx] == BLOCK_EMPTY) {
-			if (get_block_flags(ptr, block_idx) == BLOCK_EMPTY) {
-				result = block_idx;
-				if ((block_idx + 1) < header->max_blocks) {
-					//if (header->block_flags[block_idx+1] == BLOCK_EMPTY) {
-					if (get_block_flags(ptr, block_idx + 1) == BLOCK_EMPTY) {
-						ptr->header.next_free_block_idx = block_idx+1;
-					}
-				}
-
-				break;
-			}
-		}
+    int i;
+    for (i = header->next_free_block_idx; i < header->max_blocks; i++) {
+        if (get_block_flags(ptr, i) == BLOCK_EMPTY) {
+	    block_idx = i;
+	    break;
 	}
+    }
 
-	LOG_EPILOG();
-	return result;
+    //calculate next_free_block_idx for next time
+
+    // i == header->max_blocks --> no free block
+    // i == header->max_blocks - 1 --> the last block was free
+    if (i == header->max_blocks || i == header->max_blocks - 1) { // reached the end
+	header->next_free_block_idx = 0;
+    } else {
+	header->next_free_block_idx = i + 1;
+    }
+
+    LOG_EPILOG();
+    return block_idx;
 }
 
 int count_empty_blocks(page_t* ptr) {
@@ -169,7 +126,6 @@ int count_empty_blocks(page_t* ptr) {
 	int block_idx = 0;
 	page_header_t *header = &(ptr->header);
 	for (block_idx = 0; block_idx < header->max_blocks; ++block_idx) {
-		//if (header->block_flags[block_idx] == BLOCK_EMPTY) {
 		if (get_block_flags(ptr, block_idx) == BLOCK_EMPTY) {
 			count++;
 			if (header->next_free_block_idx != -1) {
@@ -177,24 +133,23 @@ int count_empty_blocks(page_t* ptr) {
 			}
 		}
 	}
-
-	ptr->header.min_free_blocks = count;
-
+	//ptr->header.min_free_blocks = count;
 	LOG_EPILOG();
 	return count;
 }
 
-
+/*
 uint32_t get_min_free_blocks(page_t* ptr) {
 	LOG_PROLOG();
 	LOG_EPILOG();
 	return ptr->header.min_free_blocks;
 }
-
+*/
 uint32_t get_max_blocks(page_t* ptr) {
 	return ptr->header.max_blocks;
 }
 
+/*
 bool has_empty_block(page_t* ptr) {
 	LOG_PROLOG();
 
@@ -203,7 +158,7 @@ bool has_empty_block(page_t* ptr) {
 	LOG_EPILOG();
 	return result;
 }
-
+*/
 void* malloc_block(page_t* ptr) {
 	assert(ptr);
 	LOG_PROLOG();
@@ -216,11 +171,8 @@ void* malloc_block(page_t* ptr) {
 	assert(ptr->header.max_blocks == num_blocks_in_page(block_size));
 	if (block_idx != -1) {
 		assert(block_idx < ptr->header.max_blocks);
-		//assert(ptr->header.block_flags[block_idx] == BLOCK_EMPTY);
 		assert(get_block_flags(ptr,block_idx) == BLOCK_EMPTY);
-		//ptr->header.block_flags[block_idx] = BLOCK_OCCUPIED;
 		set_block_flags(ptr, block_idx, BLOCK_OCCUPIED);
-		//uint32_t byte_offset = sizeof(page_header_t) + (block_idx * block_size);
 		uint32_t byte_offset = size_of_page_header(block_size) + (block_idx * block_size);
 
 		block = ((char*) ptr) + byte_offset;
@@ -228,7 +180,7 @@ void* malloc_block(page_t* ptr) {
 		//printf("page = %p, block = %p, sizeof(page_header) = %u, size_of_page_header(block_size) = %u, max_blocks = %u, block_index = %u, block_size = %u, byte_offset = %u\n", ptr, block, sizeof(page_header_t),  size_of_page_header(block_size), ptr->header.max_blocks, block_idx, block_size, byte_offset);
 		assert(byte_offset < PAGE_SIZE);
 
-		ptr->header.min_free_blocks -= 1;
+		//ptr->header.min_free_blocks -= 1;
 
 		uintptr_t pptr = (uintptr_t) ptr;
 		uintptr_t bptr = (uintptr_t) block;

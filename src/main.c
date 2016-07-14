@@ -477,11 +477,11 @@ void* test_worker_wfmalloc(void* data) {
     	//n_bytes[i] = 256;
 	mem[i] = wfmalloc(n_bytes[i], thread_id);
 	
-	write_to_bytes(mem[i], n_bytes[i]);
+	write_to_bytes(mem[i], n_bytes[i], thread_id);
     }
 
 	for (int i = 0; i < COUNT_MALLOC_OPS; ++i) {
-		test_bytes(mem[i], n_bytes[i]);
+		test_bytes(mem[i], n_bytes[i], thread_id);
 		wffree(mem[i]);
 	}
 
@@ -512,9 +512,9 @@ void test_wfmalloc(int COUNT_THREADS) {
     LOG_EPILOG();
 }
 
-void write_to_bytes(char* string, int n_bytes) {
+void write_to_bytes(char* string, int n_bytes, int thread_id) {
 	LOG_PROLOG();
-	char start = 'a';
+	char start = 'a' + thread_id;
 	int i = 0;
 	for (i = 0; i < n_bytes; i++) {
 		string[i] = start;
@@ -523,9 +523,9 @@ void write_to_bytes(char* string, int n_bytes) {
 	LOG_EPILOG();
 }
 
-void test_bytes(char* string, int n_bytes) {
+void test_bytes(char* string, int n_bytes, int thread_id) {
 	LOG_PROLOG();
-	char start = 'a';
+	char start = 'a' + thread_id;
 	int i = 0;
 	for (i = 0; i < n_bytes; i++) {
 		assert(string[i] == start);
@@ -546,14 +546,14 @@ void* test_worker_large_allocations(void* data) {
     for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
     	sizes[i] = (rand() % 10000)+1;
     	mem[i] = wfmalloc(sizes[i], thread_id);
-	write_to_bytes(mem[i], sizes[i]);
+	write_to_bytes(mem[i], sizes[i], thread_id);
 
     }
     // size of returned block should be greater than the requested size
     // this check made in wfmalloc.c
 
     for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
-		test_bytes(mem[i], sizes[i]);
+		test_bytes(mem[i], sizes[i], thread_id);
 		wffree(mem[i]);
 	}
 
@@ -1281,14 +1281,10 @@ void* workerLinuxScalability(void* data) {
 		wffree(ptr[i]);
 	}
 
-
-	LOG_INFO("one round over");
-
 	for (int i = 0; i < threadData->iterations; i++) {
 		ptr[i] = wfmalloc(threadData->objSize, threadData->threadId);
 	}
 
-	LOG_INFO("here");
 	for (int i = 0; i < threadData->iterations; i++) {
 		wffree(ptr[i]);
 	}
@@ -1357,12 +1353,12 @@ int main() {
 	}
 	LOG_INFO("no of times tests failed = %d", res);
 */
-/*
-    for (int i = 31; i < 33; i += 5) {
+
+    for (int i = 25; i < 33; i += 5) {
 	LOG_INFO("test_wfmalloc(%d)", i);
         test_wfmalloc(i);
     } 
-  */  
+    
     /*
     for (int i = 1; i < 33; i++) {
 	LOG_INFO("test_large_allocations(%d)",i);
@@ -1377,7 +1373,7 @@ int main() {
 	// linux scalability
 	int objSize[] = {8, 100, 256};
 	int iterations[] = {100, 500};
-	for (int i = 1; i < 10; i++) {
+	for (int i = 1; i < 32; i++) {
 	    for (int objSizeIndex = 0; objSizeIndex < sizeof(objSize)/sizeof(int); objSizeIndex++) {
 		  for (int iterIndex = 0; iterIndex < sizeof(iterations)/sizeof(int); iterIndex++) {
 			LOG_INFO("linuxScalability %d, %d, %d", i, objSize[objSizeIndex], iterations[iterIndex]);	
@@ -1394,7 +1390,7 @@ int main() {
 	//test_larson(1, 5, 10000, 4, 8, 30);
 	//test_larson(0, 4, 1000, 4, 8, 5);
 
-	wfstats();
+//	wfstats();
 
 	LOG_CLOSE();
 	return 0;
