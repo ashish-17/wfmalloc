@@ -12,7 +12,7 @@ typedef struct local_thread_data {
 	list_t bins[MAX_BINS][MAX_MLFQ]; // Every bin has a multi level feedback queue structure.
 	list_t* tail[MAX_BINS][MAX_MLFQ]; // Each MLFQ has to maintain tail -> beginning
         page_t* page_cache[MAX_BINS]; // Use pages from these until empty
-	int last_shared_pool_idx; // Each threads keeps track of last used shared pool/queue and then fetches next in round robin fashion.
+	//int last_shared_pool_idx; // Each threads keeps track of last used shared pool/queue and then fetches next in round robin fashion.
 	int mlfq_to_assess; //  a page at tail needs to be assessed and inserted in the right mlfq
 	int total_pages[MAX_BINS]; // total number of pages in a bin
 

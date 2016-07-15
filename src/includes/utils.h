@@ -8,6 +8,7 @@
 #ifndef INCLUDES_UTILS_H_
 #define INCLUDES_UTILS_H_
 
+#include <stdlib.h>
 
 #define OFFSETOF(type, field)    ((unsigned long) &(((type *) 0)->field))
 
@@ -98,5 +99,9 @@ static inline unsigned int get_next_stamp(unsigned int stamp) {
 		return (stamp + 1);
 	}
 }
+
+static inline int randomNumber(int min, int max) {
+    return (min + (rand() % (max - min + 1)));
+}	
 
 #endif /* INCLUDES_UTILS_H_ */

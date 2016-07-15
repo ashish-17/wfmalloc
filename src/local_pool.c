@@ -3,7 +3,10 @@
 #include "includes/logger.h"
 #include <stdlib.h>
 #include <unistd.h>
+
+#ifdef LOG_LEVEL_STATS
 #include <sys/time.h>
+#endif
 
 #include <assert.h>
 
@@ -70,7 +73,6 @@ local_pool_t* create_local_pool(int count_threads) {
 		for (bin = 0; bin < MAX_BINS; ++bin) {
 			for (mlfq = 0; mlfq < MAX_MLFQ; ++mlfq) {
                                 INIT_LIST_HEAD(&(thread_data->bins[bin][mlfq])); 
-				// TODO: don't know if this will be NULL
 				thread_data->tail[bin][mlfq] = &thread_data->bins[bin][mlfq];
                         }
 
@@ -81,7 +83,7 @@ local_pool_t* create_local_pool(int count_threads) {
 
 			block_size *= 2;
 			thread_data->page_cache[bin] = NULL;
-			thread_data->last_shared_pool_idx = 0;
+			//thread_data->last_shared_pool_idx = 0;
 			thread_data->total_pages[bin] = pool->min_pages_per_bin;
 			thread_data->mlfq_to_assess = 0;
 		}
@@ -157,7 +159,9 @@ void assess_page(local_pool_t *pool, shared_pool_t *shared_pool, int thread_id, 
 
 		// if local pool has enough pages and this page has enoug blocks, move it to shared pool
 		if ((new_mlfq_idx == MAX_MLFQ - 1) && (thread_data->total_pages[bin_idx] > pool->min_pages_per_bin)) {
-			add_page_shared_pool(shared_pool, page, thread_id, thread_data->last_shared_pool_idx);
+			//int shared_pool_idx = randomNumber(0, pool->count_processors - 1);
+			//LOG_INFO("random Number = %d", shared_pool_idx);
+			add_page_shared_pool(shared_pool, page, thread_id, randomNumber(0, pool->count_processors - 1));
 			#ifdef LOG_LEVEL_STATS
                         thread_data->count_back2_shared_pool++;
 			#endif
@@ -213,7 +217,10 @@ void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int
         	    gettimeofday(&ss, NULL);
 		    #endif
 		    
-		    thread_data->page_cache[bin_idx] = get_page_shared_pool(shared_pool, pool, thread_id, thread_data->last_shared_pool_idx, block_size);
+		    //int shared_pool_idx = randomNumber(0, pool->count_processors - 1);
+		    //LOG_INFO("random Number = %d", shared_pool_idx);
+		    
+		    thread_data->page_cache[bin_idx] = get_page_shared_pool(shared_pool, pool, thread_id, randomNumber(0, pool->count_processors - 1), block_size);
 		    
 		#ifdef LOG_LEVEL_STATS
                 thread_data->count_request_shared_pool++;
@@ -249,7 +256,6 @@ void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int
 	
 	LOG_EPILOG();	
 	return block;
-	// TODO: add stat info later
 }
 
 
@@ -266,7 +272,7 @@ void local_pool_stats(local_pool_t *pool) {
         list_t* tmp = NULL;
         for (thread = 0; thread < pool->count_threads; ++thread) {
                 LOG_DEBUG("\tThread %d", thread);
-                LOG_DEBUG("\t\tLast used shared pool idx %d", ((pool->thread_data + thread)->last_shared_pool_idx));
+                //LOG_DEBUG("\t\tLast used shared pool idx %d", ((pool->thread_data + thread)->last_shared_pool_idx));
                 thread_data = (pool->thread_data + thread);
                 for (bin = 0; bin < MAX_BINS; ++bin) {
                         LOG_INFO("\t\tBin %d", bin);

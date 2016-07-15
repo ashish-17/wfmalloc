@@ -14,6 +14,9 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#ifdef LOG_LEVEL_STATS
+#include <sys/time.h>
+#endif
 
 shared_pool_t* create_shared_pool(int count_threads) {
 	LOG_PROLOG();

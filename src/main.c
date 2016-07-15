@@ -602,11 +602,11 @@ typedef struct _ThreadData {
 
 int startClock;
 int stopClock;
-
+/*
 int randomNumber(int min, int max) {
 	return (min + (rand() % (max - min + 1)));
 }
-
+*/
 void distribute(int blocksPerThread, int minSize, int maxSize, char** blkp, int allocatorNo, int distributorId) {
 	LOG_PROLOG();
 
