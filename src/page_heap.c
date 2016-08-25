@@ -9,11 +9,13 @@
 #include "includes/utils.h"
 #include "includes/logger.h"
 #include <stdlib.h>
+#include <string.h>
 
 const int MAX_TRY = 3;
 
 uint32_t page_count_to_bin_idx(uint32_t page_count);
 uint32_t mem_size_to_bin(uint32_t size);
+uint32_t get_next_alloc_count(uint32_t current_count, uint32_t bin);
 void* alloc_heap_node(uint32_t page_count);
 void* alloc_n_heap_nodes(uint32_t page_count, uint32_t n);
 
@@ -23,8 +25,10 @@ page_heap_t* create_page_heap(int count_threads) {
 	page_heap_t* heap = (page_heap_t*)malloc(sizeof(page_heap_t));
 	heap->count_threads = count_threads;
 	heap->num_alloc_nodes = (uint32_t*)malloc(COUNT_PAGE_HEAP_BINS*sizeof(int));
-	heap->count_malloc = (uint32_t)malloc(sizeof(uint32_t)*heap->count_threads);
+	heap->count_malloc = (uint32_t*)malloc(sizeof(uint32_t)*heap->count_threads);
+	heap->count_steal = (uint32_t*)malloc(sizeof(uint32_t)*heap->count_threads);
 	memset(heap->count_malloc, 0, sizeof(uint32_t)*heap->count_threads);
+	memset(heap->count_steal, 0, sizeof(uint32_t)*heap->count_threads);
 	int bin = 0;
 	mem_block_header_t* node = NULL;
 	for (bin = 0; bin < COUNT_PAGE_HEAP_BINS; ++bin) {
@@ -59,7 +63,7 @@ mem_block_header_t* get_n_pages_cont(page_heap_t* ph, uint32_t n, int thread_id)
 		bin = page_count_to_bin_idx(n);
 		uint32_t temp = ph->num_alloc_nodes[bin];
 		mem_block_header_t *mem_new = (mem_block_header_t*)alloc_n_heap_nodes(n, temp);
-		ph->num_alloc_nodes[bin] *= 2;
+		ph->num_alloc_nodes[bin] = get_next_alloc_count(ph->num_alloc_nodes[bin], bin);
 		ph->count_malloc[thread_id]++;
 		mem = mem_new;
 		if (temp > 1) {
@@ -75,6 +79,7 @@ mem_block_header_t* get_n_pages_cont(page_heap_t* ph, uint32_t n, int thread_id)
 		mem->size = (n * PAGE_SIZE);
 		uint32_t new_bin = mem_size_to_bin(mem_new->size);
 		wf_enqueue(ph->heap_data[new_bin], &(mem_new->wf_node), ph->op_desc[new_bin], thread_id);
+		ph->count_steal[thread_id]++;
 	} else {
 		mem = (mem_block_header_t*)list_entry(node, mem_block_header_t, wf_node);
 	}
@@ -98,6 +103,19 @@ void add_to_page_heap(page_heap_t* ph, mem_block_header_t* mem, int thread_id) {
 	LOG_EPILOG();
 }
 
+uint32_t get_next_alloc_count(uint32_t current_count, uint32_t bin) {
+	LOG_PROLOG();
+	uint32_t count = current_count;
+	if (((current_count*2) * (bin + 1) * (PAGE_SIZE + sizeof(mem_block_header_t))) <= MAX_MALLOC_MEM) {
+		count = current_count*2;
+	} else if (((current_count + 1) * (bin + 1) * (PAGE_SIZE + sizeof(mem_block_header_t))) <= MAX_MALLOC_MEM) {
+		count = current_count;
+	} else {
+		count = current_count;
+	}
+	LOG_EPILOG();
+	return count;
+}
 uint32_t mem_size_to_bin(uint32_t size) {
 	LOG_PROLOG();
 	uint32_t page_count = size / PAGE_SIZE;
@@ -124,6 +142,11 @@ void* alloc_heap_node(uint32_t page_count) {
 
 void* alloc_n_heap_nodes(uint32_t page_count, uint32_t n) {
 	void* mem = malloc(n * page_count * (PAGE_SIZE + sizeof(mem_block_header_t)));
+	if (mem == NULL) {
+		LOG_ERROR("OUT OF MEMORY!! (%d bytes)", n * page_count * (PAGE_SIZE + sizeof(mem_block_header_t)));
+		return NULL;
+	}
+
 	uint32_t node_idx = 0;
 
 	mem_block_header_t* tmp = NULL;

@@ -1237,6 +1237,7 @@ void test_page_heap(int count_threads, int count_ops) {
 
 	int total_success_ops = 0;
 	int total_malloc_ops = 0;
+	int total_steal_ops = 0;
 	for (thread_idx = 0; thread_idx < count_threads; ++thread_idx) {
 		if (thread_data[thread_idx].count_ops == thread_data[thread_idx].count_success) {
 			//printf("\nsuccess for thread %d", thread_idx);
@@ -1245,12 +1246,13 @@ void test_page_heap(int count_threads, int count_ops) {
 		}
 		total_success_ops += thread_data[thread_idx].count_success;
 		total_malloc_ops+= ph->count_malloc[thread_idx];
+		total_steal_ops+= ph->count_steal[thread_idx];
 		//printf("\nMalloc count for thread %d = %d", thread_idx, ph->count_malloc[thread_idx]);
 	}
 
 	printf("\ntotal success ops = %d", total_success_ops);
 	printf("\ntotal malloc ops = %d", total_malloc_ops);
-	printf("\ntotal malloc ops = %d", total_malloc_ops);
+	printf("\ntotal steal ops = %d", total_steal_ops);
 
 }
 
@@ -1302,7 +1304,7 @@ int main() {
 	//wfstats();
 
 
-	test_page_heap(1, 1000000);
+	test_page_heap(100, 10000);
 
 	LOG_CLOSE();
 	return 0;

@@ -23,6 +23,7 @@ typedef struct page_heap {
 	uint32_t* num_alloc_nodes;
 	/* For stats*/
 	uint32_t* count_malloc;
+	uint32_t* count_steal;
 } page_heap_t;
 
 page_heap_t* create_page_heap(int count_threads);
