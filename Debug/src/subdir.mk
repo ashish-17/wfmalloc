@@ -8,6 +8,7 @@ C_SRCS += \
 ../src/logger.c \
 ../src/main.c \
 ../src/page.c \
+../src/page_heap.c \
 ../src/queue.c \
 ../src/shared_pool.c \
 ../src/wfmalloc.c 
@@ -17,6 +18,7 @@ OBJS += \
 ./src/logger.o \
 ./src/main.o \
 ./src/page.o \
+./src/page_heap.o \
 ./src/queue.o \
 ./src/shared_pool.o \
 ./src/wfmalloc.o 
@@ -26,6 +28,7 @@ C_DEPS += \
 ./src/logger.d \
 ./src/main.d \
 ./src/page.d \
+./src/page_heap.d \
 ./src/queue.d \
 ./src/shared_pool.d \
 ./src/wfmalloc.d 

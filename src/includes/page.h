@@ -18,8 +18,9 @@
 typedef struct page_header page_header_t;
 
 typedef struct mem_block_header {
-	uint32_t byte_offset; // Location of header relative to block pointer.
-	uint32_t idx;
+	uint32_t size;
+	list_t node;
+	wf_queue_node_t wf_node;
 } mem_block_header_t;
 
 struct page_header {

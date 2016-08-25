@@ -14,6 +14,7 @@
 #include <pthread.h>
 #include <stdatomic.h>
 #include <assert.h>
+#include <stdio.h>
 
 //#define CAS_TAG(old_stamped_ref, expected_stamped_ref, new_stamped_ref) (compare_and_swap_ptr (&(old_stamped_ref), (expected_stamped_ref), (new_stamped_ref)))
 
@@ -151,7 +152,7 @@ wf_queue_node_t* wf_dequeue(wf_queue_head_t *q, wf_queue_op_head_t* op_desc, int
 	node = GET_PTR_FROM_TAGGEDPTR(*(op_desc->ops + thread_id), wf_queue_op_desc_t)->node;
 	node = GET_PTR_FROM_TAGGEDPTR(node, wf_queue_node_t);
 	if (unlikely(node == NULL)) {
-		LOG_WARN("Dequeued node is NULL");
+		//LOG_WARN("Dequeued node is NULL");
 	} else if (node->deq_tid != thread_id) {
 		printf("\nProblem %d %d, pending = %d, node->sanityData = %d", node->deq_tid, thread_id, GET_PTR_FROM_TAGGEDPTR(*(op_desc->ops + thread_id), wf_queue_op_desc_t)->pending, node->sanityData);
 	} else if (GET_PTR_FROM_TAGGEDPTR(*(op_desc->ops + thread_id), wf_queue_op_desc_t)->pending) {

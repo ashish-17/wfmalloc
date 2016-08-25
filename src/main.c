@@ -6,6 +6,7 @@
 #include "includes/local_pool.h"
 #include "includes/queue.h"
 #include "includes/shared_pool.h"
+#include "includes/page_heap.h"
 #include "wfmalloc.h"
 #include <pthread.h>
 #include <string.h>
@@ -536,33 +537,33 @@ void test_wfmalloc() {
 void* test_worker_wfmalloc_bug(void* data) {
 	LOG_PROLOG();
 
-	const int COUNT_MALLOC_OPS = 500000;
-	int thread_id = *((int*)data);
-	int* sizes = malloc(sizeof(int) * COUNT_MALLOC_OPS);
-	int i = 0;
-	char* mem[COUNT_MALLOC_OPS];
-	int n_bytes[COUNT_MALLOC_OPS];
-	for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
-		sizes[i] = (rand() % 100)+1;
-		mem[i] = wfmalloc(sizes[i], thread_id);
-
-		mem_block_header_t *block_header = (mem_block_header_t*)((char*)(mem[i]) - sizeof(mem_block_header_t));
-		page_t* page_ptr = (page_t*)((char*)block_header - block_header->byte_offset);
-
-		unsigned page_size = page_ptr->header.block_size;
-
-		if (sizes[i] > page_size) {
-			LOG_INFO("Requested - %d, Returned = %d", sizes[i], page_size);
-			assert(sizes[i] <= page_size);
-		}
-
-		write_to_bytes(mem[i], n_bytes[i]);
-	}
-
-	for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
-		test_bytes(mem[i], n_bytes[i]);
-		wffree(mem[i]);
-	}
+//	const int COUNT_MALLOC_OPS = 500000;
+//	int thread_id = *((int*)data);
+//	int* sizes = malloc(sizeof(int) * COUNT_MALLOC_OPS);
+//	int i = 0;
+//	char* mem[COUNT_MALLOC_OPS];
+//	int n_bytes[COUNT_MALLOC_OPS];
+//	for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
+//		sizes[i] = (rand() % 100)+1;
+//		mem[i] = wfmalloc(sizes[i], thread_id);
+//
+//		mem_block_header_t *block_header = (mem_block_header_t*)((char*)(mem[i]) - sizeof(mem_block_header_t));
+//		page_t* page_ptr = (page_t*)((char*)block_header - block_header->byte_offset);
+//
+//		unsigned page_size = page_ptr->header.block_size;
+//
+//		if (sizes[i] > page_size) {
+//			LOG_INFO("Requested - %d, Returned = %d", sizes[i], page_size);
+//			assert(sizes[i] <= page_size);
+//		}
+//
+//		write_to_bytes(mem[i], n_bytes[i]);
+//	}
+//
+//	for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
+//		test_bytes(mem[i], n_bytes[i]);
+//		wffree(mem[i]);
+//	}
 
 	LOG_EPILOG();
 	return NULL;
@@ -1130,8 +1131,7 @@ int test_wf_enq_deq_multiple(unsigned COUNT_THREADS) {
 			k++;
 		}
 		LOG_INFO("Creating thread %d", i);
-		pthread_create(threads + i, NULL, test_func_wf_enq_deq_multiple,
-				thread_data + i);
+		pthread_create(threads + i, NULL, test_func_wf_enq_deq_multiple, thread_data + i);
 	}
 	assert(k == (COUNT_THREADS * COUNT_OPS));
 
@@ -1191,6 +1191,69 @@ int test_wf_enq_deq_multiple(unsigned COUNT_THREADS) {
 
 	return res;
 }
+
+typedef struct ph_th_data {
+	int thread_id;
+	page_heap_t* ph;
+	int count_ops;
+	int count_pages_to_alloc;
+	int count_success;
+}ph_th_data_t;
+
+void test_page_heap_worker(void* data) {
+	ph_th_data_t* ph_data = (ph_th_data_t*)data;
+	int count_success = 0;
+	int count_ops = 0;
+	mem_block_header_t* mem = NULL;
+	for (count_ops = 0; count_ops < ph_data->count_ops; ++count_ops) {
+		mem = get_n_pages_cont(ph_data->ph, ph_data->count_pages_to_alloc, ph_data->thread_id);
+		if (mem->size != PAGE_SIZE*ph_data->count_pages_to_alloc) {
+			printf("\ncorrupt mem in thread %d (%d)", ph_data->thread_id, mem->size);
+		} else {
+			ph_data->count_success++;
+		}
+	}
+}
+
+void test_page_heap(int count_threads, int count_ops) {
+	page_heap_t* ph = create_page_heap(count_threads);
+
+	pthread_t* threads = (pthread_t*)malloc(count_threads * sizeof(pthread_t));
+	ph_th_data_t* thread_data = (ph_th_data_t*)malloc(sizeof(ph_th_data_t)*count_threads);
+	int thread_idx = 0;
+	for (thread_idx = 0; thread_idx < count_threads; ++thread_idx) {
+		(thread_data + thread_idx)->count_ops = count_ops;
+		(thread_data + thread_idx)->ph = ph;
+		(thread_data + thread_idx)->count_pages_to_alloc = thread_idx+1;
+		(thread_data + thread_idx)->count_success = 0;
+		(thread_data + thread_idx)->thread_id = thread_idx;
+
+		pthread_create(threads + thread_idx, NULL, test_page_heap_worker, thread_data + thread_idx);
+	}
+
+	for (thread_idx = 0; thread_idx < count_threads; ++thread_idx) {
+		pthread_join(threads[thread_idx], NULL);
+	}
+
+	int total_success_ops = 0;
+	int total_malloc_ops = 0;
+	for (thread_idx = 0; thread_idx < count_threads; ++thread_idx) {
+		if (thread_data[thread_idx].count_ops == thread_data[thread_idx].count_success) {
+			//printf("\nsuccess for thread %d", thread_idx);
+		} else {
+			printf("\nfailed! for thread %d", thread_idx);
+		}
+		total_success_ops += thread_data[thread_idx].count_success;
+		total_malloc_ops+= ph->count_malloc[thread_idx];
+		//printf("\nMalloc count for thread %d = %d", thread_idx, ph->count_malloc[thread_idx]);
+	}
+
+	printf("\ntotal success ops = %d", total_success_ops);
+	printf("\ntotal malloc ops = %d", total_malloc_ops);
+	printf("\ntotal malloc ops = %d", total_malloc_ops);
+
+}
+
 int main() {
 	LOG_INIT_CONSOLE();
 	LOG_INIT_FILE();
@@ -1198,33 +1261,33 @@ int main() {
 	//test_page();
 	
 	// Ashish's test for enqueue followed by dequeue (single)
-	test_wf_queue();
+	//test_wf_queue();
 
-	int res = 0;
+	//int res = 0;
 	// Archita's test for dequeue (single)
-	for (unsigned i = 10; i < 33; i++) {
-	  res += test_wf_dequeue(i);
-	}
-	LOG_INFO("no of times tests failed = %d", res);
+//	for (unsigned i = 10; i < 33; i++) {
+//	  res += test_wf_dequeue(i);
+//	}
+//	LOG_INFO("no of times tests failed = %d", res);
 	
         // Test for both enqueue and dequeue (single)	
-	test_wf_enq_deq();
+//	test_wf_enq_deq();
 
 	// Test for just enqueue (multiple)
-	res = 0;
-	  for (unsigned i = 10; i < 25; i++) {
-	  LOG_INFO("\n\n Starting test with %d threads", i);
-	  res += test_wf_enqueue_multiple(i);
-	  }
-	  LOG_INFO("no of times tests failed = %d", res);
+//	res = 0;
+//	  for (unsigned i = 10; i < 25; i++) {
+//	  LOG_INFO("\n\n Starting test with %d threads", i);
+//	  res += test_wf_enqueue_multiple(i);
+//	  }
+//	  LOG_INFO("no of times tests failed = %d", res);
 
 	// Test multiple enqueue and single dequeue
-	  res = 0;
-	for (unsigned i = 1; i < 33; i++) {
-		LOG_INFO("\n\n Starting test with %d threads", i);
-		res += test_wf_enq_deq_multiple(i);
-	}
-	LOG_INFO("no of times tests failed = %d", res);
+//	  res = 0;
+//	for (unsigned i = 1; i < 33; i++) {
+//		LOG_INFO("\n\n Starting test with %d threads", i);
+//		res += test_wf_enq_deq_multiple(i);
+//	}
+//	LOG_INFO("no of times tests failed = %d", res);
 
 
 	//test_local_pool();
@@ -1237,6 +1300,9 @@ int main() {
 	//test_wfmalloc_bug(10);
 
 	//wfstats();
+
+
+	test_page_heap(1, 1000000);
 
 	LOG_CLOSE();
 	return 0;

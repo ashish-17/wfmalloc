@@ -119,35 +119,35 @@ bool has_empty_block(page_t* ptr) {
 }
 
 void* malloc_block(page_t* ptr) {
-	LOG_PROLOG();
-
-	void* block = NULL;
-	int block_idx = find_first_empty_block(ptr);
-	if (block_idx != -1) {
-		ptr->header.block_flags[block_idx] = BLOCK_OCCUPIED;
-		uint32_t block_size = ptr->header.block_size + sizeof(mem_block_header_t);
-		uint32_t byte_offset = sizeof(page_header_t) + (block_idx * block_size);
-		block = (char*) ptr + byte_offset;
-
-		mem_block_header_t *block_header = block;
-		block_header->byte_offset = byte_offset;
-		block_header->idx = block_idx;
-
-		block = (char*)block + sizeof(mem_block_header_t);
-
-		ptr->header.min_free_blocks -= 1;
-	}
-
-	LOG_EPILOG();
-	return block;
+//	LOG_PROLOG();
+//
+//	void* block = NULL;
+//	int block_idx = find_first_empty_block(ptr);
+//	if (block_idx != -1) {
+//		ptr->header.block_flags[block_idx] = BLOCK_OCCUPIED;
+//		uint32_t block_size = ptr->header.block_size + sizeof(mem_block_header_t);
+//		uint32_t byte_offset = sizeof(page_header_t) + (block_idx * block_size);
+//		block = (char*) ptr + byte_offset;
+//
+//		mem_block_header_t *block_header = block;
+//		block_header->byte_offset = byte_offset;
+//		block_header->idx = block_idx;
+//
+//		block = (char*)block + sizeof(mem_block_header_t);
+//
+//		ptr->header.min_free_blocks -= 1;
+//	}
+//
+//	LOG_EPILOG();
+//	return block;
 }
 
 void free_block(void *block_ptr) {
 	LOG_PROLOG();
 
-	mem_block_header_t *block_header = (mem_block_header_t*)((char*)block_ptr - sizeof(mem_block_header_t));
-	page_t* page_ptr = (page_t*)((char*)block_header - block_header->byte_offset);
-	page_ptr->header.block_flags[block_header->idx] = BLOCK_EMPTY;
+//	mem_block_header_t *block_header = (mem_block_header_t*)((char*)block_ptr - sizeof(mem_block_header_t));
+//	page_t* page_ptr = (page_t*)((char*)block_header - block_header->byte_offset);
+//	page_ptr->header.block_flags[block_header->idx] = BLOCK_EMPTY;
 
 	LOG_EPILOG();
 }
