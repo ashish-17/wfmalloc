@@ -37,6 +37,15 @@ static inline unsigned int quick_log2(unsigned int x)
 		case 4096:	return 12;
 		case 8192:	return 13;
 		case 16384:	return 14;
+		case 32768:	return 15;
+		case 65536:	return 16;
+		case 131072:	return 17;
+		case 262144:	return 18;
+		case 524288:	return 19;
+		case 1048576:	return 20;
+		case 2097152:	return 21;
+		case 4194304:	return 22;
+		case 8388608:	return 23;
 	}
 
 	return -1;

@@ -17,9 +17,9 @@
 #define BLOCK_EMPTY 0
 #define BLOCK_OCCUPIED 1
 
-#define MAX_BINS 8 // 4 8 16 32 64 128 256 512
+#define MAX_BINS 10 // 4 8 16 32 64 128 256 512 1024 2048
 static const long long TOTAL_INIT_MEMORY = 2147483648/2048; // 2GB
-#define MIN_PAGES_PER_BIN(count_threads) (((((TOTAL_INIT_MEMORY / count_threads) / 2) / 8) / PAGE_SIZE) + 1)
+#define MIN_PAGES_PER_BIN 1
 
 #define MAX_MLFQ 4
 #define MLFQ_THRESHOLD 2

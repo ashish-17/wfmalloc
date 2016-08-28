@@ -13,6 +13,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 
+uint32_t map_bin_to_size(uint32_t bin);
+uint32_t map_size_to_bin(uint32_t size);
 
 shared_pool_t* create_shared_pool(int count_threads) {
 	LOG_PROLOG();
@@ -22,28 +24,20 @@ shared_pool_t* create_shared_pool(int count_threads) {
 	shared_pool_t* pool = (shared_pool_t*)malloc(sizeof(shared_pool_t));
 	pool->count_processors = num_processors;
 	pool->count_threads = count_threads;
-	pool->op_desc = create_queue_op_desc(count_threads);
+	pool->ph = create_page_heap(count_threads);
 	pool->thread_data = (shared_thread_data_t*)malloc(num_processors * sizeof(shared_thread_data_t));
 	int bin = 0;
 	int queue = 0;
 	int pages = 0;
-	int min_pages_per_bin = MIN_PAGES_PER_BIN(count_threads);
 	page_t* ptr_page = NULL;
+	mem_block_header_t* mem = NULL;
 	for (queue = 0; queue < num_processors; ++queue) {
-		int block_size = MIN_BLOCK_SIZE;
 		for (bin = 0; bin < MAX_BINS; ++bin) {
-			for (pages = 0; pages < (min_pages_per_bin + 1); ++pages) {
-				ptr_page = create_page(block_size);
-				init_wf_queue_node(&(ptr_page->header.wf_node));
-
-				if (pages == 0) {
-					pool->thread_data[queue].bins[bin] = create_wf_queue(&(ptr_page->header.wf_node));
-				} else {
-					wf_enqueue(pool->thread_data[queue].bins[bin], &(ptr_page->header.wf_node), pool->op_desc, 0);
-				}
-			}
-
-			block_size *= 2;
+			mem = (mem_block_header_t*)malloc(sizeof(mem_block_header_t) + map_bin_to_size(bin));
+			pool->thread_data[queue].bins[bin] = create_wf_queue(&(mem->wf_node));
+			pool->thread_data[queue].op_desc[bin] = create_queue_op_desc(count_threads);
+			pool->thread_data[queue].count_ops[bin] = 0;
+			pool->thread_data[queue].count_pages_alloc[bin] = 1;
 		}
 	}
 
@@ -51,45 +45,68 @@ shared_pool_t* create_shared_pool(int count_threads) {
 	return pool;
 }
 
-void add_page_shared_pool(shared_pool_t *pool, page_t *page, int thread_id, int queue_idx) {
+void add_mem_shared_pool(shared_pool_t *pool, mem_block_header_t *mem, int thread_id, int queue_idx) {
 	LOG_PROLOG();
 
-	int bin_idx = quick_log2(page->header.block_size) - quick_log2(MIN_BLOCK_SIZE);
-	wf_enqueue(pool->thread_data[queue_idx].bins[bin_idx], &(page->header.wf_node), pool->op_desc, thread_id);
+	uint32_t bin_idx = map_size_to_bin(mem->size);
+	wf_enqueue(pool->thread_data[queue_idx].bins[bin_idx], &(mem->wf_node), pool->thread_data[queue_idx].op_desc[bin_idx], thread_id);
 
 	LOG_EPILOG();
 }
 
-page_t* get_page_shared_pool(shared_pool_t *pool, local_pool_t *l_pool, int thread_id, int queue_idx, int block_size) {
+mem_block_header_t* get_mem_shared_pool(shared_pool_t *pool, int thread_id, int queue_idx, int block_size) {
+	mem_block_header_t* mem = NULL;
 	LOG_PROLOG();
 
 	page_t* ret = NULL;
 
 	int bin_idx = 0;
 	if (block_size > MIN_BLOCK_SIZE) {
-		bin_idx = quick_log2(upper_power_of_two(block_size)) - quick_log2(MIN_BLOCK_SIZE);
+		bin_idx = map_size_to_bin(block_size);
 	}
 
-	wf_queue_node_t* tmp = wf_dequeue(pool->thread_data[queue_idx].bins[bin_idx], pool->op_desc, thread_id);
+	wf_queue_node_t* tmp = wf_dequeue(pool->thread_data[queue_idx].bins[bin_idx], pool->thread_data[queue_idx].op_desc[bin_idx], thread_id);
 	if (likely(tmp != NULL)) {
-		ret = (page_t*)list_entry(tmp, page_header_t, wf_node);
+		mem = (mem_block_header_t*)list_entry(tmp, mem_block_header_t, wf_node);
 	} else {
-#ifdef LOG_LEVEL_STATS
-	struct timeval s, e;
-	gettimeofday(&s, NULL);
-#endif
+		mem_block_header_t* mem_alloc = get_n_pages_cont(pool->ph, pool->thread_data[queue_idx].count_pages_alloc[bin_idx], thread_id);
+		pool->thread_data[queue_idx].count_ops[bin_idx]++;
 
-		ret = create_page(quick_pow2(quick_log2(MIN_BLOCK_SIZE) + bin_idx));
+		unsigned int log2 = quick_log2(pool->thread_data[queue_idx].count_ops[bin_idx]);
+		if (unlikely(log2 != -1)) {
+			pool->thread_data[queue_idx].count_pages_alloc[bin_idx] = log2;
+		}
 
-#ifdef LOG_LEVEL_STATS
-	gettimeofday(&e, NULL);
-	long int timeTakenMalloc = ((e.tv_sec * 1000000 + e.tv_usec) - (s.tv_sec * 1000000 + s.tv_usec ));
-	(l_pool->thread_data+thread_id)->time_malloc_system_call += timeTakenMalloc;
-#endif
+		uint32_t total_mem = (mem->size / PAGE_SIZE)*sizeof(mem_block_header_t) + mem->size;
+		uint32_t mem_blk_offset = 0;
+		mem_block_header_t* mem_extra_queue = NULL;
+		mem_block_header_t* prev_queue = NULL;
+		for (mem_blk_offset = 0; mem_blk_offset < total_mem;) {
+			if (unlikely(mem_blk_offset == 0)) {
+				mem = (mem_block_header_t*)mem_alloc;
+				mem->size = block_size;
+				init_wf_queue_node(&(mem->wf_node));
+			} else if (unlikely(mem_extra_queue == NULL)) {
+				mem_extra_queue = (mem_block_header_t*)mem_alloc;
+				mem_extra_queue->size = block_size;
+				init_wf_queue_node(&(mem_extra_queue->wf_node));
+				prev_queue = mem_extra_queue;
+			} else {
+				mem_alloc->size = block_size;
+				init_wf_queue_node(&(mem_alloc->wf_node));
+				prev_queue->wf_node.next = &(((mem_block_header_t*)mem_alloc)->wf_node);
+				prev_queue = mem_alloc;
+			}
+
+			mem_blk_offset += sizeof(mem_block_header_t) + block_size;
+			mem_alloc = (mem_block_header_t*)((char*)mem_alloc + mem_blk_offset);
+		}
+
+		add_mem_shared_pool(pool, mem_extra_queue, thread_id, queue_idx);
 	}
 
 	LOG_EPILOG();
-	return ret;
+	return mem;
 }
 
 void shared_pool_stats(shared_pool_t *pool) {
@@ -114,4 +131,25 @@ void shared_pool_stats(shared_pool_t *pool) {
 	}
 
 	LOG_EPILOG();
+}
+
+
+uint32_t map_bin_to_size(uint32_t bin) {
+	uint32_t size = 0;
+	LOG_PROLOG();
+
+	size = quick_pow2(bin + 2);
+
+	LOG_EPILOG();
+	return size;
+}
+
+uint32_t map_size_to_bin(uint32_t size) {
+	uint32_t bin = 0;
+	LOG_PROLOG();
+
+	bin = quick_log2(size) - 2;
+
+	LOG_EPILOG();
+	return bin;
 }

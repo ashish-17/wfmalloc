@@ -20,7 +20,7 @@ local_pool_t* create_local_pool(int count_threads) {
 	local_pool_t *pool = (local_pool_t*) malloc(sizeof(local_pool_t));
 	pool->count_processors = num_processors;
 	pool->count_threads = count_threads;
-	pool->min_pages_per_bin = MIN_PAGES_PER_BIN(count_threads);
+	pool->min_pages_per_bin = MIN_PAGES_PER_BIN;
 	//LOG_INFO("min_pages_per_bin = %d", pool->min_pages_per_bin);
 
 	pool->last_shared_pool_idx = (int*)malloc(sizeof(int) * count_threads);
