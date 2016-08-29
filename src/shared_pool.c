@@ -15,6 +15,7 @@
 
 uint32_t map_bin_to_size(uint32_t bin);
 uint32_t map_size_to_bin(uint32_t size);
+mem_run_t* create_mem_run(shared_pool_t *pool, uint32_t count_blocks, uint32_t block_size, int thread_id);
 
 shared_pool_t* create_shared_pool(int count_threads) {
 	LOG_PROLOG();
@@ -45,17 +46,17 @@ shared_pool_t* create_shared_pool(int count_threads) {
 	return pool;
 }
 
-void add_mem_shared_pool(shared_pool_t *pool, mem_block_header_t *mem, int thread_id, int queue_idx) {
+void add_mem_shared_pool(shared_pool_t *pool, mem_run_t *mem, int thread_id, int queue_idx) {
 	LOG_PROLOG();
 
-	uint32_t bin_idx = map_size_to_bin(mem->size);
+	uint32_t bin_idx = map_size_to_bin(mem->block_size);
 	wf_enqueue(pool->thread_data[queue_idx].bins[bin_idx], &(mem->wf_node), pool->thread_data[queue_idx].op_desc[bin_idx], thread_id);
 
 	LOG_EPILOG();
 }
 
-mem_block_header_t* get_mem_shared_pool(shared_pool_t *pool, int thread_id, int queue_idx, int block_size) {
-	mem_block_header_t* mem = NULL;
+mem_run_t* get_mem_shared_pool(shared_pool_t *pool, int thread_id, int queue_idx, int block_size) {
+	mem_run_t* mem_run = NULL;
 	LOG_PROLOG();
 
 	page_t* ret = NULL;
@@ -106,7 +107,7 @@ mem_block_header_t* get_mem_shared_pool(shared_pool_t *pool, int thread_id, int 
 	}
 
 	LOG_EPILOG();
-	return mem;
+	return mem_run;
 }
 
 void shared_pool_stats(shared_pool_t *pool) {
@@ -153,3 +154,47 @@ uint32_t map_size_to_bin(uint32_t size) {
 	LOG_EPILOG();
 	return bin;
 }
+
+
+mem_run_t* alloc_mem_run(shared_pool_t *pool, uint32_t count_blocks, uint32_t block_size, int thread_id) {
+	mem_run_t* run = NULL;
+	LOG_PROLOG();
+	uint32_t pages_required = ((sizeof(mem_run_t) + count_blocks*(block_size + sizeof(mem_block_header_t))) / PAGE_SIZE) + 1;
+	mem_block_header_t* mem_alloc = get_n_pages_cont(pool->ph, pages_required, thread_id);
+	run = mem_alloc;
+
+	uint32_t total_mem = (mem_alloc->size / PAGE_SIZE)*sizeof(mem_block_header_t) + mem_alloc->size - sizeof(mem_run_t);
+	mem_alloc = (mem_block_header_t*)((char*)mem_alloc + sizeof(mem_run_t));
+
+	uint32_t mem_blk_offset = 0;
+
+	mem_block_header_t* mem = NULL;
+	mem_block_header_t* prev_queue = NULL;
+	for (mem_blk_offset = 0; mem_blk_offset < total_mem;) {
+		if (unlikely(mem_blk_offset == 0)) {
+			mem = (mem_block_header_t*)mem_alloc;
+			mem->size = block_size;
+			mem->node.next = NULL;
+			init_wf_queue_node(&(mem->wf_node));
+		} else {
+			mem_alloc->size = block_size;
+			init_wf_queue_node(&(mem_alloc->wf_node));
+			mem_alloc->node.next = NULL;
+
+			prev_queue->node.next = &(((mem_block_header_t*)mem_alloc)->node);
+			prev_queue = mem_alloc;
+		}
+
+		mem_blk_offset += sizeof(mem_block_header_t) + block_size;
+		if (mem_blk_offset < total_mem) {
+			mem_alloc = (mem_block_header_t*)((char*)mem_alloc + mem_blk_offset);
+		}
+	}
+
+	run->list_blocks = mem;
+	init_wf_queue_node(&(run->wf_node));
+
+	LOG_EPILOG();
+	return run;
+}
+

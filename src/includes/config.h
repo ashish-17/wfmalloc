@@ -21,6 +21,9 @@
 static const long long TOTAL_INIT_MEMORY = 2147483648/2048; // 2GB
 #define MIN_PAGES_PER_BIN 1
 
+#define MIN_BLOCKS_RUN 128
+#define MAX_BLOCKS_RUN 256
+
 #define MAX_MLFQ 4
 #define MLFQ_THRESHOLD 2
 

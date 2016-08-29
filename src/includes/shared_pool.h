@@ -15,11 +15,19 @@
 
 struct local_pool;
 
+typedef struct mem_run {
+	mem_block_header_t* list_blocks;
+	wf_queue_node_t wf_node;
+} mem_run_t;
+
 typedef struct shared_thread_data {
 	wf_queue_head_t* bins[MAX_BINS];
 	wf_queue_op_head_t* op_desc[MAX_BINS];
 	int count_ops[MAX_BINS];
 	int count_pages_alloc[MAX_BINS];
+
+	wf_queue_head_t* empty_runs;
+	wf_queue_op_head_t* op_desc_runs;
 } shared_thread_data_t;
 
 typedef struct shared_pool {
