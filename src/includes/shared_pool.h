@@ -24,10 +24,6 @@ typedef struct shared_thread_data {
 	wf_queue_head_t* bins[MAX_BINS];
 	wf_queue_op_head_t* op_desc[MAX_BINS];
 	int count_ops[MAX_BINS];
-	int count_pages_alloc[MAX_BINS];
-
-	wf_queue_head_t* empty_runs;
-	wf_queue_op_head_t* op_desc_runs;
 } shared_thread_data_t;
 
 typedef struct shared_pool {
@@ -35,6 +31,9 @@ typedef struct shared_pool {
 	int count_threads;
 	shared_thread_data_t* thread_data;
 	page_heap_t* ph;
+
+	wf_queue_head_t* empty_runs;
+	wf_queue_op_head_t* op_desc_runs;
 } shared_pool_t;
 
 shared_pool_t* create_shared_pool(int count_threads);
