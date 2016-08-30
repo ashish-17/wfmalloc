@@ -16,37 +16,23 @@
 #include <stdint.h>
 
 typedef struct local_thread_data {
-	list_t bins[MAX_BINS][MAX_MLFQ]; // Every bin has a multi level feedback queue structure.
-	uint32_t count_pages_in_queue[MAX_BINS][MAX_MLFQ];
-	uint32_t counter_scan[MAX_BINS];
-	page_t* page_cache[MAX_BINS];
-
-#ifdef LOG_LEVEL_STATS
-	long int count_request_shared_pool;
-	long int count_back2_shared_pool;
-	long int count_mlfq_change;
-	long int count_malloc;
-	long int count_blocks_counting_ops;
-	long int time_malloc_total;
-	long int time_malloc_shared_pool;
-	long int time_malloc_system_call;
-#endif
+	list_t* bins[MAX_BINS];
+	uint32_t min_blocks_bin[MAX_BINS];
+	list_t* overflow[MAX_BINS];
+	uint32_t count_overflow_blocks[MAX_BINS];
 } local_thread_data_t;
 
 typedef struct local_pool {
 	int count_threads;
 	int count_processors;
-	int min_pages_per_bin;
 	int* last_shared_pool_idx; // Each threads keeps track of last used shared pool/queue and then fetches next in round robin fashion.
 	local_thread_data_t* thread_data;
 } local_pool_t;
 
 local_pool_t* create_local_pool(int count_threads);
 
-int add_page(local_pool_t *pool, page_t *page, int thread_id);
+void* get_mem(local_pool_t *pool, shared_pool_t *shared_pool, int thread_id, uint32_t block_size);
 
-void* malloc_block_from_pool(local_pool_t *pool, shared_pool_t *shared_pool, int thread_id, int block_size);
-
-void local_pool_stats(local_pool_t *pool);
+void add_mem(local_pool_t *pool, shared_pool_t *shared_pool, void* mem, int thread_id);
 
 #endif /* INCLUDES_LOCAL_POOL_H_ */

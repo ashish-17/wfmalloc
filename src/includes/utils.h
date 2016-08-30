@@ -108,4 +108,14 @@ static inline unsigned int get_next_stamp(unsigned int stamp) {
 	}
 }
 
+static inline uint32_t map_bin_to_size(uint32_t bin) {
+	uint32_t size = quick_pow2(bin + 2);
+	return size;
+}
+
+static inline uint32_t map_size_to_bin(uint32_t size) {
+	uint32_t bin = quick_log2(size) - 2;
+	return bin;
+}
+
 #endif /* INCLUDES_UTILS_H_ */

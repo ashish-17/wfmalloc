@@ -13,8 +13,6 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-uint32_t map_bin_to_size(uint32_t bin);
-uint32_t map_size_to_bin(uint32_t size);
 mem_run_t* alloc_mem_run(shared_pool_t *pool, uint32_t count_blocks, uint32_t block_size, int thread_id);
 
 shared_pool_t* create_shared_pool(int count_threads) {
@@ -118,27 +116,6 @@ void shared_pool_stats(shared_pool_t *pool) {
 	}
 
 	LOG_EPILOG();
-}
-
-
-uint32_t map_bin_to_size(uint32_t bin) {
-	uint32_t size = 0;
-	LOG_PROLOG();
-
-	size = quick_pow2(bin + 2);
-
-	LOG_EPILOG();
-	return size;
-}
-
-uint32_t map_size_to_bin(uint32_t size) {
-	uint32_t bin = 0;
-	LOG_PROLOG();
-
-	bin = quick_log2(size) - 2;
-
-	LOG_EPILOG();
-	return bin;
 }
 
 
