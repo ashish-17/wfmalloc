@@ -42,6 +42,10 @@ void add_mem_shared_pool(shared_pool_t *pool, mem_block_header_t *mem, int threa
 
 mem_block_header_t* get_mem_shared_pool(shared_pool_t *pool, int thread_id, int queue_idx, int block_size);
 
+void* get_big_mem(shared_pool_t *pool, int thread_id, int block_size);
+
+void free_big_mem(shared_pool_t *pool, mem_block_header_t *mem, int thread_id);
+
 void shared_pool_stats(shared_pool_t* pool);
 
 #endif /* INCLUDES_SHARED_POOL_H_ */

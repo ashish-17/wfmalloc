@@ -21,11 +21,24 @@ void wfinit(int max_count_threads) {
 }
 
 void* wfmalloc(size_t bytes, int thread_id) {
-	return malloc_block_from_pool(l_pool, s_pool, thread_id, bytes);;
+	void* mem = NULL;
+	if (bytes < PAGE_SIZE) {
+		mem = get_mem(l_pool, s_pool, thread_id, bytes);
+	} else {
+		mem = get_big_mem(s_pool, thread_id, bytes);
+	}
+
+	return mem;
 }
 
-void wffree(void* ptr) {
-	free_block(ptr);
+void wffree(void* ptr, int thread_id) {
+
+	mem_block_header_t* mem_block = (char*)ptr - sizeof(mem_block_header_t);
+	if (mem_block->size < PAGE_SIZE) {
+		add_mem(l_pool, s_pool, mem_block, thread_id);
+	} else {
+		free_big_mem(s_pool, mem_block, thread_id);
+	}
 }
 
 void wfstats() {

@@ -23,9 +23,8 @@ local_pool_t* create_local_pool(int count_threads) {
 	pool->last_shared_pool_idx = (int*)malloc(sizeof(int) * count_threads);
 	pool->thread_data = (local_thread_data_t*)malloc(sizeof(local_thread_data_t) * count_threads);
 
-	int thread = 0, bin = 0, mlfq = 0, page_idx = 0;
+	int thread = 0, bin = 0;
 	local_thread_data_t* thread_data = NULL;
-	page_t* ptr_page = NULL;
 	for (thread = 0; thread < count_threads; ++thread) {
 		*(pool->last_shared_pool_idx + thread) = (thread % num_processors);
 		thread_data = (pool->thread_data + thread);
@@ -56,15 +55,15 @@ void* get_mem(local_pool_t *pool, shared_pool_t *shared_pool, int thread_id, uin
 		list_t* block = pool->thread_data[thread_id].bins[bin];
 		pool->thread_data[thread_id].bins[bin] = pool->thread_data[thread_id].bins[bin]->next;
 		mem = (mem_block_header_t*)list_entry(block, mem_block_header_t, node);
-		pool->thread_data[thread_id]->min_blocks_bin[bin]--;
+		pool->thread_data[thread_id].min_blocks_bin[bin]--;
 	} else {
 		mem_block_header_t* new_mem =  get_mem_shared_pool(shared_pool, thread_id, *(pool->last_shared_pool_idx + thread_id), block_size);
 		pool->thread_data[thread_id].bins[bin] = &(new_mem->node);
-		pool->thread_data[thread_id]->min_blocks_bin[bin] = MAX_BLOCKS_RUN;
+		pool->thread_data[thread_id].min_blocks_bin[bin] = MAX_BLOCKS_RUN;
 
 		list_t* block = pool->thread_data[thread_id].bins[bin];
 		pool->thread_data[thread_id].bins[bin] = pool->thread_data[thread_id].bins[bin]->next;
-		pool->thread_data[thread_id]->min_blocks_bin[bin]--;
+		pool->thread_data[thread_id].min_blocks_bin[bin]--;
 
 		mem = (mem_block_header_t*)list_entry(block, mem_block_header_t, node);
 
@@ -80,26 +79,26 @@ void* get_mem(local_pool_t *pool, shared_pool_t *shared_pool, int thread_id, uin
 void add_mem(local_pool_t *pool, shared_pool_t *shared_pool, void* mem, int thread_id) {
 	LOG_PROLOG();
 
-	mem_block_header_t* mem_block = (char*)mem - sizeof(mem_block_header_t);
+	mem_block_header_t* mem_block = (mem_block_header_t*)((char*)mem - sizeof(mem_block_header_t));
 	uint32_t bin = map_size_to_bin(mem_block->size);
-	if (pool->thread_data[thread_id]->min_blocks_bin[bin] > THRESHOLD_OVERFLOW_BIN) {
-		if (pool->thread_data[thread_id]->count_overflow_blocks == MAX_BLOCKS_RUN) {
+	if (pool->thread_data[thread_id].min_blocks_bin[bin] > THRESHOLD_OVERFLOW_BIN) {
+		if (pool->thread_data[thread_id].count_overflow_blocks[bin] == MAX_BLOCKS_RUN) {
 			list_t* block = pool->thread_data[thread_id].overflow[bin];
 			mem_block_header_t* mem_overflow = (mem_block_header_t*)list_entry(block, mem_block_header_t, node);
 			add_mem_shared_pool(shared_pool, mem_overflow, thread_id, *(pool->last_shared_pool_idx + thread_id));
 
 			*(pool->last_shared_pool_idx + thread_id) = (*(pool->last_shared_pool_idx + thread_id) + 1) % pool->count_processors;
 			pool->thread_data[thread_id].overflow[bin] = NULL;
-			pool->thread_data[thread_id]->count_overflow_blocks = 0;
+			pool->thread_data[thread_id].count_overflow_blocks[bin] = 0;
 		}
 
 		mem_block->node.next = pool->thread_data[thread_id].overflow[bin];
 		pool->thread_data[thread_id].overflow[bin] = &(mem_block->node);
-		pool->thread_data[thread_id]->count_overflow_blocks[bin]++;
+		pool->thread_data[thread_id].count_overflow_blocks[bin]++;
 	} else {
 		mem_block->node.next = pool->thread_data[thread_id].bins[bin];
 		pool->thread_data[thread_id].bins[bin] = &(mem_block->node);
-		pool->thread_data[thread_id]->min_blocks_bin[bin]++;
+		pool->thread_data[thread_id].min_blocks_bin[bin]++;
 	}
 	LOG_EPILOG();
 }

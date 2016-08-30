@@ -14,7 +14,7 @@ void wfinit(int max_count_threads);
 
 void* wfmalloc(size_t bytes, int thread_id);
 
-void wffree(void* ptr);
+void wffree(void* ptr, int thread_id);
 
 void wfstats();
 

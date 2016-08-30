@@ -94,6 +94,25 @@ mem_block_header_t* get_mem_shared_pool(shared_pool_t *pool, int thread_id, int 
 	return mem;
 }
 
+void* get_big_mem(shared_pool_t *pool, int thread_id, int block_size) {
+	mem_block_header_t* mem = NULL;
+	LOG_PROLOG();
+
+	uint32_t pages_required = (block_size / PAGE_SIZE) +  (block_size % PAGE_SIZE == 0 ? 0 : 1);
+	mem = get_n_pages_cont(pool->ph, pages_required, thread_id);
+
+	void* ret_mem = (char*)mem + sizeof(mem_block_header_t);
+	LOG_EPILOG();
+	return ret_mem;
+}
+
+
+void free_big_mem(shared_pool_t *pool, mem_block_header_t *mem, int thread_id) {
+	LOG_PROLOG();
+	add_to_page_heap(pool->ph, mem, thread_id);
+	LOG_EPILOG();
+}
+
 void shared_pool_stats(shared_pool_t *pool) {
 	LOG_PROLOG();
 

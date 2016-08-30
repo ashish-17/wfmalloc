@@ -482,7 +482,7 @@ void* test_worker_wfmalloc(void* data) {
 	}
 
 	for (i = 0; i < COUNT_MALLOC_OPS; ++i) {
-		wffree(mem[i]);
+		wffree(mem[i], thread_id);
 	}
 
 	LOG_EPILOG();
@@ -642,7 +642,7 @@ void initialRoundOfAllocationFree(int numOfBlocks, int minSize, int maxSize, int
 	for (i = 0; i < numOfBlocks; i++) {
 		victim = randomNumber(0, numOfBlocks - i - 1);
 		if (allocatorNo == 1) {
-			wffree(blkp[victim]);
+			wffree(blkp[victim], threadId);
 		} else {
 			free(blkp[victim]);
 		}
@@ -664,7 +664,7 @@ void* worker(void *data) {
 	while (1) {
 		victim = randomNumber(0, threadData->blocksPerThread - 1);
 		if (threadData->allocatorNo == 1) {
-			wffree(threadData->blkp[victim]);
+			wffree(threadData->blkp[victim], threadData->threadId);
 		} else {
 			free(threadData->blkp[victim]);
 		}
