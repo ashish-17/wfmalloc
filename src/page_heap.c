@@ -71,6 +71,7 @@ mem_block_header_t* get_n_pages_cont(page_heap_t* ph, uint32_t n, int thread_id)
 			uint32_t new_bin = mem_size_to_bin(mem_new->size);
 			wf_enqueue(ph->heap_data[new_bin], &(mem_new->wf_node), ph->op_desc[new_bin], thread_id);
 		}
+		init_wf_queue_node(&(mem->wf_node));
 	} else if (count_tries > 0) {
 		mem_block_header_t *mem_new = (mem_block_header_t*)list_entry(node, mem_block_header_t, wf_node);
 		mem = mem_new;
@@ -78,6 +79,8 @@ mem_block_header_t* get_n_pages_cont(page_heap_t* ph, uint32_t n, int thread_id)
 		mem_new->size = (mem->size / PAGE_SIZE - n) * PAGE_SIZE;
 		mem->size = (n * PAGE_SIZE);
 		uint32_t new_bin = mem_size_to_bin(mem_new->size);
+		init_wf_queue_node(&(mem->wf_node));
+		init_wf_queue_node(&(mem_new->wf_node));
 		wf_enqueue(ph->heap_data[new_bin], &(mem_new->wf_node), ph->op_desc[new_bin], thread_id);
 		ph->count_steal[thread_id]++;
 	} else {

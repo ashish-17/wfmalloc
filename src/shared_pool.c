@@ -35,8 +35,6 @@ shared_pool_t* create_shared_pool(int count_threads) {
 
 	int bin = 0;
 	int queue = 0;
-	int pages = 0;
-	page_t* ptr_page = NULL;
 	for (queue = 0; queue < num_processors; ++queue) {
 		for (bin = 0; bin < MAX_BINS; ++bin) {
 			tmp_mem_run = alloc_mem_run(pool, MAX_BLOCKS_RUN, map_bin_to_size(bin), 0);
@@ -145,7 +143,7 @@ mem_run_t* alloc_mem_run(shared_pool_t *pool, uint32_t count_blocks, uint32_t bl
 	mem_block_header_t* mem_alloc = get_n_pages_cont(pool->ph, pages_required, thread_id);
 	run = mem_alloc;
 
-	uint32_t total_mem = (mem_alloc->size / PAGE_SIZE)*sizeof(mem_block_header_t) + mem_alloc->size - sizeof(mem_run_t);
+	uint32_t total_mem = sizeof(mem_block_header_t) + mem_alloc->size - sizeof(mem_run_t);
 	mem_alloc = (mem_block_header_t*)((char*)mem_alloc + sizeof(mem_run_t));
 
 	uint32_t mem_blk_offset = 0;

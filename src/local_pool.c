@@ -123,7 +123,7 @@ void local_pool_sanity_check(local_pool_t* pool) {
 				if (mem_block->size != map_bin_to_size(bin)) {
 					LOG_ERROR("Invalid memory block of size %d in bin %d", mem_block->size, bin);
 				}
-				tmp = &(tmp->next);
+				tmp = tmp->next;
 				count++;
 			}
 
@@ -137,7 +137,7 @@ void local_pool_sanity_check(local_pool_t* pool) {
 				if (mem_block->size != map_bin_to_size(bin)) {
 					LOG_ERROR("Invalid memory overflow block of size %d in bin %d", mem_block->size, bin);
 				}
-				tmp = &(tmp->next);
+				tmp = tmp->next;
 				count++;
 			}
 

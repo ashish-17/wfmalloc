@@ -121,26 +121,26 @@ void test_pools_single_thread() {
 	void* block = NULL;
 	int i = 0;
 	int count4 = 0, count8 = 0, count256 = 0, count512 = 0;
-	for (i = 0; i < 100; ++i) {
+	for (i = 0; i < 100000; ++i) {
 		block = wfmalloc(4, 0);
 		if (block != NULL) {
 			count4++;
 		}
 
-//		block = wfmalloc(8, 0);
-//		if (block != NULL) {
-//			count8++;
-//		}
-//
-//		block = wfmalloc(256, 0);
-//		if (block != NULL) {
-//			count256++;
-//		}
-//
-//		block = wfmalloc(512, 0);
-//		if (block != NULL) {
-//			count512++;
-//		}
+		block = wfmalloc(8, 0);
+		if (block != NULL) {
+			count8++;
+		}
+
+		block = wfmalloc(256, 0);
+		if (block != NULL) {
+			count256++;
+		}
+
+		block = wfmalloc(512, 0);
+		if (block != NULL) {
+			count512++;
+		}
 	}
 
 	LOG_INFO("Num blocks allocated: 4 bytes = %d, 8 bytes = %d, 256 bytes = %d, 512 bytes = %d", count4, count8, count256, count512);

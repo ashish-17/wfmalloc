@@ -43,11 +43,11 @@ void wffree(void* ptr, int thread_id) {
 
 void wfstats() {
     //LOG_INIT_CONSOLE();
-    LOG_INIT_FILE();
+    //LOG_INIT_FILE();
 
 	local_pool_sanity_check(l_pool);
 	//shared_pool_stats(s_pool);
 
-    LOG_CLOSE();
+    //LOG_CLOSE();
 }
 
