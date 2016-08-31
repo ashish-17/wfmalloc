@@ -171,7 +171,7 @@ mem_run_t* alloc_mem_run(shared_pool_t *pool, uint32_t count_blocks, uint32_t bl
 
 		mem_blk_offset += sizeof(mem_block_header_t) + block_size;
 		if (mem_blk_offset < total_mem) {
-			mem_alloc = (mem_block_header_t*)((char*)mem_alloc + mem_blk_offset);
+			mem_alloc = (mem_block_header_t*)((char*)mem_alloc + sizeof(mem_block_header_t) + block_size);
 		}
 	}
 

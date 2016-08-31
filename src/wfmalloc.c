@@ -33,7 +33,7 @@ void* wfmalloc(size_t bytes, int thread_id) {
 
 void wffree(void* ptr, int thread_id) {
 
-	mem_block_header_t* mem_block = (char*)ptr - sizeof(mem_block_header_t);
+	mem_block_header_t* mem_block = (mem_block_header_t*)((char*)ptr - sizeof(mem_block_header_t));
 	if (mem_block->size < PAGE_SIZE) {
 		add_mem(l_pool, s_pool, mem_block, thread_id);
 	} else {
@@ -45,7 +45,7 @@ void wfstats() {
     //LOG_INIT_CONSOLE();
     LOG_INIT_FILE();
 
-	local_pool_stats(l_pool);
+	local_pool_sanity_check(l_pool);
 	//shared_pool_stats(s_pool);
 
     LOG_CLOSE();

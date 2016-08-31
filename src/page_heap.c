@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-const int MAX_TRY = 3;
+const int MAX_TRY = 1;
 
 uint32_t page_count_to_bin_idx(uint32_t page_count);
 uint32_t mem_size_to_bin(uint32_t size);

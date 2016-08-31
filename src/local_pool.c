@@ -56,6 +56,9 @@ void* get_mem(local_pool_t *pool, shared_pool_t *shared_pool, int thread_id, uin
 		pool->thread_data[thread_id].bins[bin] = pool->thread_data[thread_id].bins[bin]->next;
 		mem = (mem_block_header_t*)list_entry(block, mem_block_header_t, node);
 		pool->thread_data[thread_id].min_blocks_bin[bin]--;
+		if (pool->thread_data[thread_id].min_blocks_bin[bin] < 0) {
+			pool->thread_data[thread_id].min_blocks_bin[bin] = 0;
+		}
 	} else {
 		mem_block_header_t* new_mem =  get_mem_shared_pool(shared_pool, thread_id, *(pool->last_shared_pool_idx + thread_id), block_size);
 		pool->thread_data[thread_id].bins[bin] = &(new_mem->node);
@@ -100,5 +103,48 @@ void add_mem(local_pool_t *pool, shared_pool_t *shared_pool, void* mem, int thre
 		pool->thread_data[thread_id].bins[bin] = &(mem_block->node);
 		pool->thread_data[thread_id].min_blocks_bin[bin]++;
 	}
+	LOG_EPILOG();
+}
+
+
+void local_pool_sanity_check(local_pool_t* pool) {
+	LOG_PROLOG();
+	int thread = 0, bin = 0;
+	local_thread_data_t* thread_data = NULL;
+	list_t* tmp = NULL;
+	mem_block_header_t* mem_block = NULL;
+	uint32_t count = 0;
+	for (thread = 0; thread < pool->count_threads; ++thread) {
+		thread_data = (pool->thread_data + thread);
+		for (bin = 0; bin < MAX_BINS; ++bin) {
+			tmp = thread_data->bins[bin];
+			while (tmp != NULL) {
+				mem_block = (mem_block_header_t*)list_entry(tmp, mem_block_header_t, node);
+				if (mem_block->size != map_bin_to_size(bin)) {
+					LOG_ERROR("Invalid memory block of size %d in bin %d", mem_block->size, bin);
+				}
+				tmp = &(tmp->next);
+				count++;
+			}
+
+			LOG_INFO("Count blocks in bin %d = %d", bin, count);
+			LOG_INFO("min blocks count in bin %d = %d", bin, thread_data->min_blocks_bin[bin]);
+
+			count = 0;
+			tmp = thread_data->overflow[bin];
+			while (tmp != NULL) {
+				mem_block = (mem_block_header_t*) list_entry(tmp, mem_block_header_t, node);
+				if (mem_block->size != map_bin_to_size(bin)) {
+					LOG_ERROR("Invalid memory overflow block of size %d in bin %d", mem_block->size, bin);
+				}
+				tmp = &(tmp->next);
+				count++;
+			}
+
+			LOG_INFO("Count overflow blocks in bin %d = %d", bin, count);
+			LOG_INFO("min overflow blocks count in bin %d = %d", bin, thread_data->count_overflow_blocks[bin]);
+		}
+	}
+
 	LOG_EPILOG();
 }

@@ -64,7 +64,7 @@ void test_local_pool() {
 	LOG_PROLOG();
 
 	local_pool_t* pool = create_local_pool(2);
-	local_pool_stats(pool);
+	//local_pool_stats(pool);
 
 	LOG_EPILOG();
 }
@@ -81,11 +81,11 @@ void* test_pools(void* data) {
 	int i = 0;
 	void** blocks = malloc(sizeof(void*) * thread_data->count_malloc_ops);
 	for (i = 0; i < thread_data->count_malloc_ops; ++i) {
-		blocks[i] = malloc_block_from_pool(thread_data->l_pool, thread_data->s_pool, thread_data->thread_id, 4);
+		blocks[i] = wfmalloc(4, thread_data->thread_id);
 	}
 
 	for (i = 0; i < thread_data->count_malloc_ops; ++i) {
-		free_block(blocks[i]);
+		wffree(blocks[i], thread_data->thread_id);
 	}
 
 	return NULL;
@@ -95,16 +95,13 @@ void test_pools_multi_thread() {
 	const int COUNT_THREADS = 4;
 	const int MALLOC_OPS = 309*2;
 
-	local_pool_t* l_pool = create_local_pool(COUNT_THREADS);
-	shared_pool_t* s_pool = create_shared_pool(COUNT_THREADS);
+	wfinit(COUNT_THREADS);
 
 	dummy_data_pools_t dummy_data[COUNT_THREADS];
 	pthread_t threads[COUNT_THREADS];
 	int i = 0;
 	for (i = 0; i < COUNT_THREADS; ++i) {
 		dummy_data[i].thread_id = i;
-		dummy_data[i].l_pool = l_pool;
-		dummy_data[i].s_pool = s_pool;
 		dummy_data[i].count_malloc_ops = MALLOC_OPS;
 
 		pthread_create(threads + i, NULL, test_pools, dummy_data + i);
@@ -119,35 +116,36 @@ void test_pools_single_thread() {
 	LOG_PROLOG();
 	const int COUNT_THREADS = 1;
 
-	local_pool_t* l_pool = create_local_pool(COUNT_THREADS);
-	shared_pool_t* s_pool = create_shared_pool(COUNT_THREADS);
+	wfinit(COUNT_THREADS);
 
 	void* block = NULL;
 	int i = 0;
 	int count4 = 0, count8 = 0, count256 = 0, count512 = 0;
-	for (i = 0; i < 1545; ++i) {
-		block = malloc_block_from_pool(l_pool, s_pool, 0, 4);
+	for (i = 0; i < 100; ++i) {
+		block = wfmalloc(4, 0);
 		if (block != NULL) {
 			count4++;
 		}
 
-		block = malloc_block_from_pool(l_pool, s_pool, 0, 16);
-		if (block != NULL) {
-			count8++;
-		}
-		block = malloc_block_from_pool(l_pool, s_pool, 0, 256);
-		if (block != NULL) {
-			count256++;
-		}
-
-		block = malloc_block_from_pool(l_pool, s_pool, 0, 512);
-		if (block != NULL) {
-			count512++;
-		}
+//		block = wfmalloc(8, 0);
+//		if (block != NULL) {
+//			count8++;
+//		}
+//
+//		block = wfmalloc(256, 0);
+//		if (block != NULL) {
+//			count256++;
+//		}
+//
+//		block = wfmalloc(512, 0);
+//		if (block != NULL) {
+//			count512++;
+//		}
 	}
 
-	local_pool_stats(l_pool);
 	LOG_INFO("Num blocks allocated: 4 bytes = %d, 8 bytes = %d, 256 bytes = %d, 512 bytes = %d", count4, count8, count256, count512);
+
+	wfstats();
 
 	LOG_EPILOG();
 }
@@ -1304,7 +1302,9 @@ int main() {
 	//wfstats();
 
 
-	test_page_heap(100, 10000);
+	//test_page_heap(100, 10000);
+
+	test_pools_single_thread();
 
 	LOG_CLOSE();
 	return 0;
