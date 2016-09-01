@@ -28,7 +28,7 @@ static const long long TOTAL_INIT_MEMORY = 2147483648/2048; // 2GB
 #define MAX_MLFQ 4
 #define MLFQ_THRESHOLD 2
 
-#define MAX_MALLOC_MEM 536870912 // Bytes
+#define MAX_MALLOC_MEM (536870912 / 64) // Bytes
 
 #define CALC_MLFQ_IDX(empty, max) ((empty) == (max) ? 0 : ((empty) == 0) ? ((MAX_MLFQ) - 1) : ((MAX_MLFQ-1) - (((empty) * (MAX_MLFQ-1)) / (max)) - 1))
 #define MIN_OPS_BEFORE_REMOVAL 4

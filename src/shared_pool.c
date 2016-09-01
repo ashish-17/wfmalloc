@@ -57,6 +57,7 @@ void add_mem_shared_pool(shared_pool_t *pool, mem_block_header_t *mem, int threa
 		run->list_blocks = mem;
 
 		uint32_t bin_idx = map_size_to_bin(mem->size);
+		init_wf_queue_node(&(run->wf_node));
 		wf_enqueue(pool->thread_data[queue_idx].bins[bin_idx], &(run->wf_node), pool->thread_data[queue_idx].op_desc[bin_idx], thread_id);
 	} else {
 		LOG_ERROR("Insufficient runs");
@@ -85,7 +86,9 @@ mem_block_header_t* get_mem_shared_pool(shared_pool_t *pool, int thread_id, int 
 	}
 
 	mem = mem_run->list_blocks;
+	mem_run = (mem_run_t*)malloc(sizeof(mem_run_t));
 	mem_run->list_blocks = NULL;
+	init_wf_queue_node(&(mem_run->wf_node));
 	wf_enqueue(pool->empty_runs, &(mem_run->wf_node), pool->op_desc_runs, thread_id);
 
 	LOG_EPILOG();

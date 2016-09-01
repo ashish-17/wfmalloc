@@ -44,6 +44,7 @@ void init_wf_queue_node(wf_queue_node_t* node) {
 	node->next = NULL;
 	node->enq_tid = -1;
 	node->deq_tid = -1;
+	node->sanityData = 0;
 
 	LOG_EPILOG();
 }

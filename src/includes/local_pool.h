@@ -33,7 +33,7 @@ local_pool_t* create_local_pool(int count_threads);
 
 void* get_mem(local_pool_t *pool, shared_pool_t *shared_pool, int thread_id, uint32_t block_size);
 
-void add_mem(local_pool_t *pool, shared_pool_t *shared_pool, void* mem, int thread_id);
+void add_mem(local_pool_t *pool, shared_pool_t *shared_pool, mem_block_header_t* mem_block, int thread_id);
 
 void local_pool_sanity_check();
 

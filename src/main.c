@@ -71,8 +71,6 @@ void test_local_pool() {
 
 typedef struct dummy_data_pools {
 	int thread_id;
-	local_pool_t* l_pool;
-	shared_pool_t* s_pool;
 	int count_malloc_ops;
 } dummy_data_pools_t;
 
@@ -81,19 +79,19 @@ void* test_pools(void* data) {
 	int i = 0;
 	void** blocks = malloc(sizeof(void*) * thread_data->count_malloc_ops);
 	for (i = 0; i < thread_data->count_malloc_ops; ++i) {
-		blocks[i] = wfmalloc(4, thread_data->thread_id);
+		blocks[i] = wfmalloc(2048, thread_data->thread_id);
 	}
 
 	for (i = 0; i < thread_data->count_malloc_ops; ++i) {
-		wffree(blocks[i], thread_data->thread_id);
+		//wffree(blocks[i], thread_data->thread_id);
 	}
 
 	return NULL;
 }
 
 void test_pools_multi_thread() {
-	const int COUNT_THREADS = 4;
-	const int MALLOC_OPS = 309*2;
+	const int COUNT_THREADS = 10;
+	const int MALLOC_OPS = 50000;
 
 	wfinit(COUNT_THREADS);
 
@@ -1088,7 +1086,7 @@ void* test_func_wf_enq_deq_multiple(void* thread_data) {
 		total_num_ops -= num_ops;
 		index_queue_data += num_ops;
 		assert(data->queue_data[i] == NULL);
-		data->queue_data[i] = wf_dequeue(data->q, data->op_desc, data->thread_id);
+		//data->queue_data[i] = wf_dequeue(data->q, data->op_desc, data->thread_id);
 		i++;
 	}
 
@@ -1222,7 +1220,7 @@ void test_page_heap(int count_threads, int count_ops) {
 	for (thread_idx = 0; thread_idx < count_threads; ++thread_idx) {
 		(thread_data + thread_idx)->count_ops = count_ops;
 		(thread_data + thread_idx)->ph = ph;
-		(thread_data + thread_idx)->count_pages_to_alloc = thread_idx+1;
+		(thread_data + thread_idx)->count_pages_to_alloc = 50 + thread_idx;
 		(thread_data + thread_idx)->count_success = 0;
 		(thread_data + thread_idx)->thread_id = thread_idx;
 
@@ -1263,7 +1261,7 @@ int main() {
 	// Ashish's test for enqueue followed by dequeue (single)
 	//test_wf_queue();
 
-	//int res = 0;
+	int res = 0;
 	// Archita's test for dequeue (single)
 //	for (unsigned i = 10; i < 33; i++) {
 //	  res += test_wf_dequeue(i);
@@ -1271,7 +1269,7 @@ int main() {
 //	LOG_INFO("no of times tests failed = %d", res);
 	
         // Test for both enqueue and dequeue (single)	
-//	test_wf_enq_deq();
+	test_wf_enq_deq();
 
 	// Test for just enqueue (multiple)
 //	res = 0;
@@ -1283,7 +1281,7 @@ int main() {
 
 	// Test multiple enqueue and single dequeue
 //	  res = 0;
-//	for (unsigned i = 1; i < 33; i++) {
+//	for (unsigned i = 1; i < 10; i++) {
 //		LOG_INFO("\n\n Starting test with %d threads", i);
 //		res += test_wf_enq_deq_multiple(i);
 //	}
@@ -1302,9 +1300,10 @@ int main() {
 	//wfstats();
 
 
-	//test_page_heap(100, 10000);
+	//test_page_heap(10, 1000);
 
-	test_pools_single_thread();
+	//test_pools_single_thread();
+	//test_pools_multi_thread();
 
 	LOG_CLOSE();
 	return 0;

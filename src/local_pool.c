@@ -79,10 +79,9 @@ void* get_mem(local_pool_t *pool, shared_pool_t *shared_pool, int thread_id, uin
 }
 
 
-void add_mem(local_pool_t *pool, shared_pool_t *shared_pool, void* mem, int thread_id) {
+void add_mem(local_pool_t *pool, shared_pool_t *shared_pool, mem_block_header_t* mem_block, int thread_id) {
 	LOG_PROLOG();
 
-	mem_block_header_t* mem_block = (mem_block_header_t*)((char*)mem - sizeof(mem_block_header_t));
 	uint32_t bin = map_size_to_bin(mem_block->size);
 	if (pool->thread_data[thread_id].min_blocks_bin[bin] > THRESHOLD_OVERFLOW_BIN) {
 		if (pool->thread_data[thread_id].count_overflow_blocks[bin] == MAX_BLOCKS_RUN) {

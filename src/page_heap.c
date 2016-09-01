@@ -116,6 +116,8 @@ uint32_t get_next_alloc_count(uint32_t current_count, uint32_t bin) {
 	} else {
 		count = current_count;
 	}
+
+	LOG_DEBUG("last count = %d, count = %d, bin = %d", current_count, count, bin);
 	LOG_EPILOG();
 	return count;
 }
@@ -148,6 +150,8 @@ void* alloc_n_heap_nodes(uint32_t page_count, uint32_t n) {
 	if (mem == NULL) {
 		LOG_ERROR("OUT OF MEMORY!! (%d bytes)", n * page_count * (PAGE_SIZE + sizeof(mem_block_header_t)));
 		return NULL;
+	} else {
+		LOG_DEBUG("malloc %d bytes", n * page_count * (PAGE_SIZE + sizeof(mem_block_header_t)));
 	}
 
 	uint32_t node_idx = 0;
